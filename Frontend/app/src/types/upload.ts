@@ -1,10 +1,18 @@
-export type DocType = 'expense' | 'invoice' | 'payroll' | 'bank_statement'
+export type DocType =
+  | 'GST_INVOICE'
+  | 'PURCHASE_BILL'
+  | 'EXPENSE_RECEIPT'
+  | 'UTILITY_BILL'
+  | 'CREDIT_NOTE'
+  | 'DEBIT_NOTE'
 
 export interface ClassificationResult {
   type: DocType
   label: string
   subCategory: string
   confidence: number
+  classifierLevel: 'L1' | 'L2' | 'L3'
+  topPredictions?: { type: DocType; confidence: number }[]
   merchant: string
   date: string
   suggestedSubCategories: string[]
@@ -23,11 +31,14 @@ export interface ValidationRule {
   name: string
   passed: boolean
   message: string
+  severity: 'error' | 'warning'
 }
 
 export interface ValidationResult {
   rules: ValidationRule[]
   overallPassed: boolean
+  errors: ValidationRule[]
+  warnings: ValidationRule[]
 }
 
 export interface WorkflowState {

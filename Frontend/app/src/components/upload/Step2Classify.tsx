@@ -23,10 +23,12 @@ interface Step2ClassifyProps {
 }
 
 const DOC_TYPE_LABELS: Record<DocType, string> = {
-  expense: 'Expense',
-  invoice: 'Invoice',
-  payroll: 'Payroll',
-  bank_statement: 'Bank Stmt',
+  GST_INVOICE:     'GST Invoice',
+  PURCHASE_BILL:   'Purchase Bill',
+  EXPENSE_RECEIPT: 'Expense',
+  UTILITY_BILL:    'Utility Bill',
+  CREDIT_NOTE:     'Credit Note',
+  DEBIT_NOTE:      'Debit Note',
 }
 
 function ConfidenceBadge({ value }: { value: number }) {
@@ -179,7 +181,7 @@ export function Step2Classify({
                style={{ color: 'rgba(240,244,255,0.4)' }}>
               Category Type
             </p>
-            <div className="grid grid-cols-4 gap-2 p-1 rounded-xl"
+            <div className="grid grid-cols-3 gap-2 p-1 rounded-xl"
                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
               {(Object.keys(DOC_TYPE_LABELS) as DocType[]).map((type) => (
                 <motion.button
