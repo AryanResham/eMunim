@@ -1,3 +1,5 @@
+import type { OCRResult } from '@/types/ocr'
+
 export type DocType =
   | 'GST_INVOICE'
   | 'PURCHASE_BILL'
@@ -49,5 +51,8 @@ export interface WorkflowState {
   classification: ClassificationResult | null
   extractedFields: ExtractedField[] | null
   validationResult: ValidationResult | null
+  ocrResult: OCRResult | null
+  processedWidth: number
+  processedHeight: number
   isProcessing: boolean
 }

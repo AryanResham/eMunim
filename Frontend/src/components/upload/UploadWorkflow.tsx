@@ -16,6 +16,9 @@ const INITIAL_STATE: WorkflowState = {
   classification: null,
   extractedFields: null,
   validationResult: null,
+  ocrResult: null,
+  processedWidth: 0,
+  processedHeight: 0,
   isProcessing: false,
 }
 
@@ -36,8 +39,28 @@ export function UploadWorkflow() {
   async function handleFileReady(file: File) {
     const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null
     setState((s) => ({ ...s, file, filePreviewUrl: previewUrl, isProcessing: true }))
+
+    const formData = new FormData()
+    formData.append('file', file)
+    const uploadRes = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData })
+    const uploadData = await uploadRes.json()
+
+    const ocrRes = await fetch('http://localhost:8000/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: uploadData.file_id }),
+    })
+    const ocrResult = await ocrRes.json()
+
     const classification = await classifyDocument(file)
-    setState((s) => ({ ...s, classification, isProcessing: false }))
+    setState((s) => ({
+      ...s,
+      classification,
+      ocrResult,
+      processedWidth: uploadData.width,
+      processedHeight: uploadData.height,
+      isProcessing: false,
+    }))
     go(2, 1)
   }
 
@@ -94,6 +117,9 @@ export function UploadWorkflow() {
                 file={state.file}
                 filePreviewUrl={state.filePreviewUrl}
                 classification={state.classification}
+                ocrResult={state.ocrResult}
+                processedWidth={state.processedWidth}
+                processedHeight={state.processedHeight}
                 onProceed={handleClassifyProceed}
                 onBack={() => go(1, -1)}
                 isProcessing={state.isProcessing}

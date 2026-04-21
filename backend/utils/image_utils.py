@@ -1,27 +1,26 @@
-# ============================================================
-# ARYAN — image_utils.py
-# ============================================================
-#
-# PURPOSE:
-#   Convert uploaded documents (PDF or image) into image bytes
-#   that can be sent to Google Cloud Vision or PaddleOCR.
-#
-# FUNCTIONS TO IMPLEMENT:
-#
-#   def pdf_to_images(pdf_bytes: bytes) -> list[bytes]:
-#       - Use pdf2image.convert_from_bytes() to convert each PDF page to a PIL image
-#       - Convert each PIL image to JPEG bytes and return as list
-#       - Windows: pdf2image needs poppler — install via:
-#           conda install -c conda-forge poppler
-#         OR set poppler_path= in convert_from_bytes()
-#       - Multi-page PDFs return one bytes entry per page
-#
-#   def normalize_image(image_bytes: bytes) -> bytes:
-#       - Open with PIL, convert to RGB
-#       - Resize so longest side is max 2048px (Cloud Vision works best under 4MB)
-#       - Save as JPEG and return bytes
-#
-# IMPORTS YOU WILL NEED:
-#   from pdf2image import convert_from_bytes
-#   from PIL import Image
-#   import io
+from PIL import Image, ImageOps
+import io
+
+# Vision API works best when the longest side is under 2048px and DPI is 300
+TARGET_LONG_SIDE = 2048
+TARGET_DPI = 300
+
+
+def normalize_image(image_bytes: bytes) -> bytes:
+    img = Image.open(io.BytesIO(image_bytes))
+
+    # RGB strips alpha channels and handles grayscale — Vision API expects RGB
+    img = img.convert("RGB")
+
+    # Boost contrast so faded ink / low-quality scans read more clearly
+    img = ImageOps.autocontrast(img)
+
+    # Scale down only if needed — never upscale, that adds blur not detail
+    w, h = img.size
+    if max(w, h) > TARGET_LONG_SIDE:
+        scale = TARGET_LONG_SIDE / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    out = io.BytesIO()
+    img.save(out, format="JPEG", dpi=(TARGET_DPI, TARGET_DPI), quality=95)
+    return out.getvalue()

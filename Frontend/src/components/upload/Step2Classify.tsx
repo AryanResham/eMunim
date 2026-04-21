@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,15 +8,22 @@ import {
   FileText,
   Image,
   Loader2,
+  ScanText,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ClassificationResult, DocType } from '@/types/upload'
+import type { OCRResult } from '@/types/ocr'
+import { OcrDebugViewer } from '@/components/OcrDebugViewer'
 import { cn } from '@/lib/utils'
 
 interface Step2ClassifyProps {
   file: File
   filePreviewUrl: string | null
   classification: ClassificationResult
+  ocrResult: OCRResult | null
+  processedWidth: number
+  processedHeight: number
   onProceed: (updated: ClassificationResult) => Promise<void>
   onBack: () => void
   isProcessing: boolean
@@ -56,12 +63,16 @@ export function Step2Classify({
   file,
   filePreviewUrl,
   classification,
+  ocrResult,
+  processedWidth,
+  processedHeight,
   onProceed,
   onBack,
   isProcessing,
 }: Step2ClassifyProps) {
   const [selectedType, setSelectedType] = useState<DocType>(classification.type)
   const [selectedSub, setSelectedSub] = useState(classification.subCategory)
+  const [showOcr, setShowOcr] = useState(false)
 
   const handleProceed = () => {
     onProceed({ ...classification, type: selectedType, subCategory: selectedSub })
@@ -87,10 +98,26 @@ export function Step2Classify({
           style={{ minHeight: 360 }}
         >
           <div
-            className="px-4 py-2.5 border-b text-[11px] font-semibold uppercase tracking-wider"
-            style={{ borderColor: 'rgba(0,0,0,0.07)', color: '#A09890' }}
+            className="px-4 py-2.5 border-b flex items-center justify-between"
+            style={{ borderColor: 'rgba(0,0,0,0.07)' }}
           >
-            Document Preview
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#A09890' }}>
+              Document Preview
+            </span>
+            {ocrResult && (
+              <button
+                onClick={() => setShowOcr(true)}
+                className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                style={{
+                  background: 'rgba(75,108,183,0.1)',
+                  border: '1px solid rgba(75,108,183,0.25)',
+                  color: '#4B6CB7',
+                }}
+              >
+                <ScanText size={12} />
+                View OCR
+              </button>
+            )}
           </div>
           <div className="flex-1 flex items-center justify-center p-4">
             {isImage && filePreviewUrl ? (
@@ -229,6 +256,44 @@ export function Step2Classify({
           </div>
         </div>
       </div>
+
+      {/* OCR overlay */}
+      <AnimatePresence>
+        {showOcr && ocrResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50"
+            style={{ background: 'rgba(0,0,0,0.55)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-4 rounded-2xl overflow-hidden"
+              style={{ background: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,0.25)' }}
+            >
+              <button
+                onClick={() => setShowOcr(false)}
+                className="absolute top-3 right-3 z-10 p-2 rounded-lg cursor-pointer transition-colors"
+                style={{ background: 'rgba(0,0,0,0.07)', color: '#78726A' }}
+              >
+                <X size={16} />
+              </button>
+              <OcrDebugViewer
+                file={file}
+                result={ocrResult}
+                processedWidth={processedWidth}
+                processedHeight={processedHeight}
+                onContinue={() => setShowOcr(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom nav */}
       <div className="flex gap-3">
