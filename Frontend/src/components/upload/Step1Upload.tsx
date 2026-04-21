@@ -17,8 +17,8 @@ function formatBytes(bytes: number) {
 }
 
 function FileIcon({ type }: { type: string }) {
-  if (type === 'application/pdf') return <FileText size={18} className="text-[#3B6FD4]" />
-  return <Image size={18} className="text-[#2ABFBF]" />
+  if (type === 'application/pdf') return <FileText size={18} style={{ color: '#4B6CB7' }} />
+  return <Image size={18} style={{ color: '#4B6CB7' }} />
 }
 
 export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
@@ -44,15 +44,12 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto">
+    <div className="flex flex-col gap-5 w-full max-w-2xl mx-auto">
       <div>
-        <h2
-          className="text-3xl font-normal text-white mb-1.5"
-          style={{ fontFamily: 'Calistoga, serif' }}
-        >
+        <h2 className="text-2xl font-semibold mb-1" style={{ color: '#1A1816' }}>
           Upload a document
         </h2>
-        <p className="text-sm" style={{ color: 'rgba(240,244,255,0.55)' }}>
+        <p className="text-sm" style={{ color: '#A09890' }}>
           PDFs, JPEGs, and PNGs — eMunim AI will handle the rest
         </p>
       </div>
@@ -62,19 +59,20 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
         {...getRootProps()}
         className="relative rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center text-center cursor-pointer outline-none transition-all duration-200"
         style={{
-          minHeight: 280,
+          minHeight: 260,
           borderColor: isDragActive
-            ? 'rgba(59,111,212,0.7)'
+            ? '#4B6CB7'
             : file
-            ? 'rgba(34,197,94,0.4)'
-            : 'rgba(255,255,255,0.12)',
+            ? '#16A34A'
+            : 'rgba(0,0,0,0.14)',
           backgroundColor: isDragActive
-            ? 'rgba(59,111,212,0.06)'
-            : 'rgba(255,255,255,0.03)',
+            ? 'rgba(75,108,183,0.05)'
+            : file
+            ? 'rgba(22,163,74,0.03)'
+            : 'rgba(0,0,0,0.02)',
         }}
       >
         <input {...getInputProps()} />
-
 
         <AnimatePresence mode="wait">
           {isDragActive ? (
@@ -86,12 +84,12 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
               className="flex flex-col items-center gap-4"
             >
               <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(59,111,212,0.2)', boxShadow: '0 0 32px rgba(59,111,212,0.3)' }}
+                className="w-14 h-14 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(75,108,183,0.12)' }}
               >
-                <CloudUpload size={28} className="text-[#3B6FD4]" />
+                <CloudUpload size={26} style={{ color: '#4B6CB7' }} />
               </div>
-              <p className="text-base font-semibold text-white">Drop to upload</p>
+              <p className="text-base font-semibold" style={{ color: '#1A1816' }}>Drop to upload</p>
             </motion.div>
           ) : (
             <motion.div
@@ -99,21 +97,21 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center gap-5"
+              className="flex flex-col items-center gap-4"
             >
               <motion.div
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(42,191,191,0.12)', border: '1px solid rgba(42,191,191,0.2)' }}
+                whileHover={{ scale: 1.04 }}
+                transition={{ duration: 0.18 }}
+                className="w-14 h-14 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.09)' }}
               >
-                <CloudUpload size={28} className="text-[#2ABFBF]" />
+                <CloudUpload size={26} style={{ color: '#78726A' }} />
               </motion.div>
               <div>
-                <p className="text-base font-semibold text-white mb-1">
+                <p className="text-base font-semibold mb-1" style={{ color: '#1A1816' }}>
                   Drag & drop your document here
                 </p>
-                <p className="text-sm" style={{ color: 'rgba(240,244,255,0.45)' }}>
+                <p className="text-sm" style={{ color: '#A09890' }}>
                   or click to browse files
                 </p>
               </div>
@@ -123,9 +121,9 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
                     key={fmt}
                     className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
                     style={{
-                      background: 'rgba(255,255,255,0.07)',
-                      color: 'rgba(240,244,255,0.5)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.06)',
+                      color: '#A09890',
+                      border: '1px solid rgba(0,0,0,0.1)',
                     }}
                   >
                     {fmt}
@@ -146,22 +144,23 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
             exit={{ opacity: 0, y: 8 }}
             className="flex items-center gap-3 px-4 py-3 rounded-xl"
             style={{
-              background: 'rgba(34,197,94,0.08)',
-              border: '1px solid rgba(34,197,94,0.2)',
+              background: 'rgba(22,163,74,0.07)',
+              border: '1px solid rgba(22,163,74,0.2)',
             }}
           >
             <FileIcon type={file.type} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{file.name}</p>
-              <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>
+              <p className="text-sm font-medium truncate" style={{ color: '#1A1816' }}>{file.name}</p>
+              <p className="text-xs" style={{ color: '#A09890' }}>
                 {formatBytes(file.size)}
               </p>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); setFile(null) }}
-              className="p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded-lg transition-colors cursor-pointer"
+              style={{ color: '#A09890' }}
             >
-              <X size={14} className="text-white/50" />
+              <X size={14} />
             </button>
           </motion.div>
         )}
@@ -171,30 +170,32 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
       <div className="flex gap-3">
         <Button
           variant="outline"
-          className="flex-1 gap-2 h-11 border-white/15 bg-white/6 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/25"
+          className="flex-1 gap-2 h-10 text-sm cursor-pointer"
+          style={{
+            border: '1px solid rgba(0,0,0,0.12)',
+            background: 'rgba(0,0,0,0.04)',
+            color: '#78726A',
+          }}
         >
-          <Link size={16} />
+          <Link size={15} />
           Connect Drive
         </Button>
-        <motion.div whileTap={{ scale: 0.97 }} className={cn('flex-1', !file && 'opacity-50 pointer-events-none')}>
+        <motion.div whileTap={{ scale: 0.97 }} className={cn('flex-1', !file && 'opacity-40 pointer-events-none')}>
           <Button
-            className="w-full gap-2 h-11 text-white font-semibold"
-            style={{
-              background: 'linear-gradient(135deg, #3B6FD4, #2851a3)',
-              boxShadow: file ? '0 4px 20px rgba(59,111,212,0.4)' : 'none',
-            }}
+            className="w-full gap-2 h-10 text-white text-sm font-semibold cursor-pointer"
+            style={{ background: '#4B6CB7' }}
             onClick={handleContinue}
             disabled={!file || isProcessing}
           >
             {isProcessing ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={15} className="animate-spin" />
                 Analysing...
               </>
             ) : (
               <>
                 Continue
-                <ArrowRight size={16} />
+                <ArrowRight size={15} />
               </>
             )}
           </Button>
