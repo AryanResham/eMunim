@@ -55,6 +55,23 @@ export async function extractFields(
   return data.fields // Backend returns { fields: [...], line_items: [...] }
 }
 
+export async function runLayoutLlmTestInference(
+  fileId: string,
+  docType: DocType,
+  ocrResult: OCRResult
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/layoutllm-test-inference`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file_id: fileId,
+      doc_type: docType,
+      ocr_result: ocrResult,
+    }),
+  })
+  if (!res.ok) throw new Error('LayoutLLM test inference failed')
+}
+
 /** Step 3 → 4: Run validation rules (Keep mock for now as backend router isn't ready) */
 export async function validateEntry(fields: ExtractedField[]): Promise<ValidationResult> {
   // We will connect this once we implement backend/routers/validate.py

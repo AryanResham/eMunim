@@ -27,3 +27,7 @@ dist-ssr
 
 .claude
 .playwright-mcp
+
+# Deep Learning Model Weights
+*.safetensors
+*.bin

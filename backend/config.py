@@ -8,6 +8,9 @@ load_dotenv(dotenv_path=ENV_PATH)
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_PATH, env_file_encoding="utf-8")
     GOOGLE_CLOUD_VISION_API_KEY: str = ""
+    LAYOUTLLM_API_KEY: str = ""
+    LAYOUTLLM_BASE_URL: str = "https://api.openai.com/v1"
+    LAYOUTLLM_MODEL: str = "gpt-4.1-mini"
     DATABASE_URL: str = ""
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5174"]

@@ -5,7 +5,7 @@ import { Step1Upload } from './Step1Upload'
 import { Step2Classify } from './Step2Classify'
 import { Step3Extract } from './Step3Extract'
 import { Step4Validate } from './Step4Validate'
-import { classifyDocument, extractFields, validateEntry } from '@/api/backend'
+import { classifyDocument, extractFields, runLayoutLlmTestInference, validateEntry } from '@/api/backend'
 import type { WorkflowState, ClassificationResult } from '@/types/upload'
 
 const INITIAL_STATE: WorkflowState = {
@@ -58,6 +58,10 @@ export function UploadWorkflow() {
 
       // 3. Classify (Real Backend)
       const classification = await classifyDocument(uploadData.file_id, ocrResult.full_text)
+
+      void runLayoutLlmTestInference(uploadData.file_id, classification.type, ocrResult).catch((error) => {
+        console.error('Background LayoutLLM test inference failed:', error)
+      })
       
       setState((s) => ({
         ...s,

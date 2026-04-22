@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from routers.upload import FILE_STORE
 from services.extractor.layoutlm_extractor import extract_fields
 from services.extractor.table_parser import parse_line_items
+from tests.layoutllm_real_flow import run_layoutllm_real_flow
 
 router = APIRouter()
 
@@ -57,3 +58,18 @@ def extract(request: ExtractRequest):
     )
 
     return {"fields": fields, "line_items": line_items}
+
+
+@router.post("/layoutllm-test-inference")
+def layoutllm_test_inference(request: ExtractRequest):
+    if request.file_id not in FILE_STORE:
+        raise HTTPException(status_code=404, detail="File not found - upload the file first via /api/upload")
+
+    image_bytes = FILE_STORE[request.file_id]
+
+    return run_layoutllm_real_flow(
+        image_bytes=image_bytes,
+        file_name=f"{request.file_id}.jpg",
+        ocr_result=request.ocr_result.model_dump(),
+        doc_type=request.doc_type,
+    )
