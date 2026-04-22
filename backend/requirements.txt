@@ -11,13 +11,13 @@ pdf2image==1.17.0
 
 # Phase 1 — OCR (Aryan)
 # google-cloud-vision==3.7.4
-# numpy==1.26.4
+numpy==1.26.4
 
 # Phase 2 & 3 — Classification + Extraction (Ayan)
-# transformers==4.44.0
-# torch==2.4.0
-# sentencepiece==0.2.0
-# datasets==2.20.0
+transformers==4.44.0
+torch==2.4.0
+sentencepiece==0.2.0
+datasets==2.20.0
 
 # Phase 5 — Database
 # sqlalchemy==2.0.31

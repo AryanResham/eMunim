@@ -5,13 +5,14 @@ import { Step1Upload } from './Step1Upload'
 import { Step2Classify } from './Step2Classify'
 import { Step3Extract } from './Step3Extract'
 import { Step4Validate } from './Step4Validate'
-import { classifyDocument, extractFields, validateEntry } from '@/api/mockBackend'
+import { classifyDocument, extractFields, validateEntry } from '@/api/backend'
 import type { WorkflowState, ClassificationResult } from '@/types/upload'
 
 const INITIAL_STATE: WorkflowState = {
   step: 1,
   direction: 1,
   file: null,
+  fileId: null,
   filePreviewUrl: null,
   classification: null,
   extractedFields: null,
@@ -40,45 +41,69 @@ export function UploadWorkflow() {
     const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null
     setState((s) => ({ ...s, file, filePreviewUrl: previewUrl, isProcessing: true }))
 
-    const formData = new FormData()
-    formData.append('file', file)
-    const uploadRes = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData })
-    const uploadData = await uploadRes.json()
+    try {
+      // 1. Upload
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData })
+      const uploadData = await uploadRes.json()
 
-    const ocrRes = await fetch('http://localhost:8000/api/ocr', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_id: uploadData.file_id }),
-    })
-    const ocrResult = await ocrRes.json()
+      // 2. OCR
+      const ocrRes = await fetch('http://localhost:8000/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_id: uploadData.file_id }),
+      })
+      const ocrResult = await ocrRes.json()
 
-    const classification = await classifyDocument(file)
-    setState((s) => ({
-      ...s,
-      classification,
-      ocrResult,
-      processedWidth: uploadData.width,
-      processedHeight: uploadData.height,
-      isProcessing: false,
-    }))
-    go(2, 1)
+      // 3. Classify (Real Backend)
+      const classification = await classifyDocument(uploadData.file_id, ocrResult.full_text)
+      
+      setState((s) => ({
+        ...s,
+        fileId: uploadData.file_id,
+        classification,
+        ocrResult,
+        processedWidth: uploadData.width,
+        processedHeight: uploadData.height,
+        isProcessing: false,
+      }))
+      go(2, 1)
+    } catch (error) {
+      console.error('Workflow Step 1 failed:', error)
+      setState((s) => ({ ...s, isProcessing: false }))
+      alert('Processing failed. Please check if the backend is running.')
+    }
   }
 
   // Step 2 → 3
   async function handleClassifyProceed(updated: ClassificationResult) {
+    if (!state.fileId || !state.ocrResult) return
     setState((s) => ({ ...s, classification: updated, isProcessing: true }))
-    const extractedFields = await extractFields(updated)
-    setState((s) => ({ ...s, extractedFields, isProcessing: false }))
-    go(3, 1)
+    
+    try {
+      const extractedFields = await extractFields(state.fileId, updated.type, state.ocrResult)
+      setState((s) => ({ ...s, extractedFields, isProcessing: false }))
+      go(3, 1)
+    } catch (error) {
+      console.error('Workflow Step 2 failed:', error)
+      setState((s) => ({ ...s, isProcessing: false }))
+    }
   }
 
   // Step 3 → 4
   async function handleExtractProceed() {
     if (!state.extractedFields) return
     setState((s) => ({ ...s, isProcessing: true }))
-    const validationResult = await validateEntry(state.extractedFields)
-    setState((s) => ({ ...s, validationResult, isProcessing: false }))
-    go(4, 1)
+    
+    try {
+      const validationResult = await validateEntry(state.extractedFields)
+      setState((s) => ({ ...s, validationResult, isProcessing: false }))
+      go(4, 1)
+    } catch (error) {
+      console.error('Workflow Step 3 failed:', error)
+      setState((s) => ({ ...s, isProcessing: false }))
+    }
   }
 
   // Step 4 → done (reset)

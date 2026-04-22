@@ -47,6 +47,7 @@ export interface WorkflowState {
   step: 1 | 2 | 3 | 4
   direction: 1 | -1
   file: File | null
+  fileId: string | null
   filePreviewUrl: string | null
   classification: ClassificationResult | null
   extractedFields: ExtractedField[] | null

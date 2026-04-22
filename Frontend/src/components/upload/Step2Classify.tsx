@@ -223,6 +223,37 @@ export function Step2Classify({
             </div>
           </div>
 
+          {/* All predictions */}
+          {classification.topPredictions && classification.topPredictions.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#A09890' }}>
+                All Predictions
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {classification.topPredictions.map((pred) => {
+                  const pct = Math.round(pred.confidence * 100)
+                  const barColor = pct >= 90 ? '#16A34A' : pct >= 70 ? '#D97706' : '#DC2626'
+                  return (
+                    <div key={pred.type} className="flex items-center gap-2">
+                      <span className="text-[11px] font-medium w-32 shrink-0" style={{ color: '#78726A' }}>
+                        {DOC_TYPE_LABELS[pred.type]}
+                      </span>
+                      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.08)' }}>
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: barColor }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-semibold w-10 text-right" style={{ color: barColor }}>
+                        {pct}%
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Sub-category chips */}
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#A09890' }}>

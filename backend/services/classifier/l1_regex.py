@@ -8,9 +8,10 @@ _RULES: list[tuple[re.Pattern, str, float]] = [
     (re.compile(r'\bCREDIT\s+NOTE\b', re.I),                              'CREDIT_NOTE',     0.95),
     (re.compile(r'\bDEBIT\s+NOTE\b', re.I),                               'DEBIT_NOTE',      0.95),
     (re.compile(r'\b(TAX\s+INVOICE|GST\s+INVOICE)\b', re.I),              'GST_INVOICE',     0.85),
+    (re.compile(r'\bINVOICE\b', re.I),                                     'GST_INVOICE',     0.92),
     (re.compile(r'\bPURCHASE\s+(ORDER|BILL)\b', re.I),                    'PURCHASE_BILL',   0.80),
     (re.compile(r'\b(ELECTRICITY|WATER|GAS|INTERNET|BROADBAND)\b.*\bBILL\b', re.I), 'UTILITY_BILL', 0.80),
-    (re.compile(r'\bRECEIPT\b', re.I),                                    'EXPENSE_RECEIPT', 0.70),
+    (re.compile(r'\bRECEIPT\b', re.I),                                    'EXPENSE_RECEIPT', 0.82),
 ]
 
 
