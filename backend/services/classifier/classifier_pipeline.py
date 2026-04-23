@@ -5,8 +5,12 @@ from datetime import datetime
 from .l1_regex import classify_l1
 from .l2_finbert import classify_l2
 
-_L1_THRESHOLD = 0.80
-_L2_THRESHOLD = 0.60
+from utils.confidence_config import (
+    CLASSIFIER_L1_THRESHOLD,
+    CLASSIFIER_L2_THRESHOLD,
+    format_confidence,
+    format_prediction_confidence
+)
 
 _DOC_TYPE_METADATA: dict[str, dict] = {
     "GST_INVOICE": {
@@ -56,22 +60,7 @@ def _extract_date(text: str) -> str:
     return ""
 
 
-def _extract_merchant(text: str) -> str:
-    # Look for "Invoice from:", "Vendor:", "Billed by:" prefixes first
-    prefix_match = re.search(
-        r'(?:invoice\s+from|vendor|billed\s+by|from)\s*[:\-]?\s*([A-Z][A-Za-z\s\.&,]{3,50})',
-        text, re.I
-    )
-    if prefix_match:
-        return prefix_match.group(1).strip()
 
-    # Fall back to first all-caps line that looks like a company name
-    for line in text.splitlines()[:8]:
-        line = line.strip()
-        if len(line) > 4 and line == line.upper() and not any(c.isdigit() for c in line):
-            return line.title()
-
-    return ""
 
 
 def classify_document(ocr_text: str) -> dict:
@@ -84,33 +73,31 @@ def classify_document(ocr_text: str) -> dict:
     """
     # L1 — regex
     l1_type, l1_conf = classify_l1(ocr_text)
-    if l1_type and l1_conf >= _L1_THRESHOLD:
+    if l1_type and l1_conf >= CLASSIFIER_L1_THRESHOLD:
         meta = _DOC_TYPE_METADATA[l1_type]
         return {
             "type": l1_type,
             "label": meta["label"],
             "sub_category": meta["suggested_sub_categories"][0],
-            "confidence": round(l1_conf * 100, 1),
+            "confidence": format_confidence(l1_conf),
             "classifier_level": "L1",
-            "top_predictions": [{"type": l1_type, "confidence": round(l1_conf, 3)}],
-            "merchant": _extract_merchant(ocr_text),
+            "top_predictions": [{"type": l1_type, "confidence": format_prediction_confidence(l1_conf)}],
             "date": _extract_date(ocr_text),
             "suggested_sub_categories": meta["suggested_sub_categories"],
         }
 
     # L2 — zero-shot NLP
     l2_type, l2_conf, predictions = classify_l2(ocr_text)
-    level = "L2" if l2_conf >= _L2_THRESHOLD else "L3"
+    level = "L2" if l2_conf >= CLASSIFIER_L2_THRESHOLD else "L3"
     meta = _DOC_TYPE_METADATA[l2_type]
 
     return {
         "type": l2_type,
         "label": meta["label"],
         "sub_category": meta["suggested_sub_categories"][0],
-        "confidence": round(l2_conf * 100, 1),
+        "confidence": format_confidence(l2_conf),
         "classifier_level": level,
         "top_predictions": predictions,
-        "merchant": _extract_merchant(ocr_text),
         "date": _extract_date(ocr_text),
         "suggested_sub_categories": meta["suggested_sub_categories"],
     }

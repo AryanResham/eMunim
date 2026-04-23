@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from routers.upload import FILE_STORE
+from utils.confidence_config import OCR_DEFAULT_WORD_CONFIDENCE
 from services.extractor.layoutlm_extractor import extract_fields
 from services.extractor.table_parser import parse_line_items
 from tests.layoutllm_real_flow import run_layoutllm_real_flow
@@ -12,7 +13,7 @@ router = APIRouter()
 class OCRWordRequest(BaseModel):
     text: str
     bounding_box: list[list[int]]
-    confidence: float = 1.0
+    confidence: float = OCR_DEFAULT_WORD_CONFIDENCE
 
 
 class OCRResultRequest(BaseModel):
@@ -25,6 +26,7 @@ class ExtractRequest(BaseModel):
     file_id: str
     doc_type: str
     ocr_result: OCRResultRequest
+    model_type: str = "indian"
 
 
 @router.post("/extract")
@@ -43,7 +45,7 @@ def extract(request: ExtractRequest):
     words = [w.text for w in request.ocr_result.words]
     bboxes_raw = [w.bounding_box for w in request.ocr_result.words]
 
-    fields = extract_fields(
+    indian_fields = extract_fields(
         image_bytes=image_bytes,
         words=words,
         bboxes_raw=bboxes_raw,
@@ -51,13 +53,37 @@ def extract(request: ExtractRequest):
         image_height=height,
         doc_type=request.doc_type,
         ocr_text=request.ocr_result.full_text,
+        model_key="indian",
     )
+
+    try:
+        synthetic_fields = extract_fields(
+            image_bytes=image_bytes,
+            words=words,
+            bboxes_raw=bboxes_raw,
+            image_width=width,
+            image_height=height,
+            doc_type=request.doc_type,
+            ocr_text=request.ocr_result.full_text,
+            model_key="synthetic",
+        )
+        
+        # Modify synthetic fields to avoid key collisions and make them distinguishable
+        for f in synthetic_fields:
+            f["key"] = f"synthetic_{f['key']}"
+            f["label"] = f"{f['label']} (Synthetic)"
+            
+    except Exception as e:
+        print(f"Failed to load synthetic model: {e}")
+        synthetic_fields = []
+
+    combined_fields = indian_fields + synthetic_fields
 
     line_items = parse_line_items(
         [w.model_dump() for w in request.ocr_result.words]
     )
 
-    return {"fields": fields, "line_items": line_items}
+    return {"fields": combined_fields, "line_items": line_items}
 
 
 @router.post("/layoutllm-test-inference")

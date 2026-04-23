@@ -12,6 +12,7 @@ import httpx
 
 from config import settings
 from services.extractor.field_mapper import get_field_meta, get_label_set
+from utils.confidence_config import LAYOUTLLM_LLM_CONFIDENCE
 
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -164,7 +165,7 @@ def _normalize_fields(doc_type: str, fields_payload: dict[str, Any]) -> list[dic
                 "key": key,
                 "label": meta["label"],
                 "value": value_str,
-                "confidence": 0.9,
+                "confidence": LAYOUTLLM_LLM_CONFIDENCE,
                 "editable": meta["editable"],
                 "monospace": meta["monospace"],
                 "source": "layoutllm",

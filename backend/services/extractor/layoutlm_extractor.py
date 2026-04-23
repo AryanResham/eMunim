@@ -7,7 +7,7 @@ from .rule_based_extractor import extract_all_regex
 # Cache one (processor, model, labels) tuple per doc_type to avoid reloading
 _models: dict[str, tuple] = {}
 
-_REGEX_FALLBACK_THRESHOLD = 0.50
+from utils.confidence_config import EXTRACTOR_LAYOUTLM_THRESHOLD, format_confidence
 
 
 def _normalize_bbox(vertices: list[list[int]], width: int, height: int) -> list[int]:
@@ -26,34 +26,44 @@ def _normalize_bbox(vertices: list[list[int]], width: int, height: int) -> list[
     ]
 
 
-def _get_model(doc_type: str):
-    if doc_type not in _models:
+def _get_model(model_key="indian"):
+    if model_key not in _models:
         from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
-        labels = get_label_set(doc_type)
-        processor = LayoutLMv3Processor.from_pretrained("microsoft/layoutlmv3-base")
-        model = LayoutLMv3ForTokenClassification.from_pretrained(
-            "microsoft/layoutlmv3-base",
-            num_labels=len(labels),
-        )
+        from pathlib import Path
+        
+        folder_map = {
+            "indian": "layoutlm-indian-invoice-trained",
+            "synthetic": "layoutlm-synthetic-trained"
+        }
+        folder_name = folder_map.get(model_key, "layoutlm-indian-invoice-trained")
+        
+        model_path = str(Path(__file__).resolve().parent.parent.parent.parent / "layoutLM model" / folder_name)
+        
+        processor = LayoutLMv3Processor.from_pretrained(model_path, apply_ocr=False)
+        model = LayoutLMv3ForTokenClassification.from_pretrained(model_path)
         model.eval()
-        _models[doc_type] = (processor, model, labels)
-    return _models[doc_type]
+        
+        labels = list(model.config.id2label.values())
+        _models[model_key] = (processor, model, labels)
+    return _models[model_key]
 
 
 def _aggregate_bio_predictions(
     words: list[str],
     predictions: list[int],
+    confidences: list[float],
     word_ids: list[int | None],
     labels: list[str],
 ) -> dict[str, tuple[str, float]]:
     """
     Convert token-level BIO predictions → field_key: (value, confidence).
     Groups consecutive B-/I- tokens of the same type into a single field value.
-    Confidence is approximated as 0.80 for model predictions (pre-fine-tuning placeholder).
+    Confidence is the average softmax probability of the tokens.
     """
     seen_word_ids: set[int] = set()
     current_field: str | None = None
     current_tokens: list[str] = []
+    current_confs: list[float] = []
     extracted: dict[str, tuple[str, float]] = {}
 
     for token_idx, word_id in enumerate(word_ids):
@@ -63,22 +73,29 @@ def _aggregate_bio_predictions(
 
         label = labels[predictions[token_idx]]
         word = words[word_id]
+        conf = confidences[token_idx]
 
         if label.startswith("B-"):
             if current_field and current_tokens:
-                extracted[current_field] = (" ".join(current_tokens), 0.80)
+                avg_conf = sum(current_confs) / len(current_confs)
+                extracted[current_field] = (" ".join(current_tokens), avg_conf)
             current_field = bio_label_to_key(label)
             current_tokens = [word]
+            current_confs = [conf]
         elif label.startswith("I-") and current_field == bio_label_to_key(label):
             current_tokens.append(word)
+            current_confs.append(conf)
         else:
             if current_field and current_tokens:
-                extracted[current_field] = (" ".join(current_tokens), 0.80)
+                avg_conf = sum(current_confs) / len(current_confs)
+                extracted[current_field] = (" ".join(current_tokens), avg_conf)
             current_field = None
             current_tokens = []
+            current_confs = []
 
     if current_field and current_tokens:
-        extracted[current_field] = (" ".join(current_tokens), 0.80)
+        avg_conf = sum(current_confs) / len(current_confs)
+        extracted[current_field] = (" ".join(current_tokens), avg_conf)
 
     return extracted
 
@@ -91,6 +108,7 @@ def extract_fields(
     image_height: int,
     doc_type: str,
     ocr_text: str,
+    model_key: str = "indian",
 ) -> list[dict]:
     """
     Run LayoutLMv3 token classification + regex fallback.
@@ -99,7 +117,7 @@ def extract_fields(
     import torch
     from PIL import Image
 
-    processor, model, labels = _get_model(doc_type)
+    processor, model, labels = _get_model(model_key)
 
     # Normalize bboxes to 0-1000
     normalized_bboxes = [
@@ -122,22 +140,16 @@ def extract_fields(
     with torch.no_grad():
         outputs = model(**encoding)
 
-    predictions = outputs.logits.argmax(-1).squeeze().tolist()
+    probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    predictions = probs.argmax(-1).squeeze().tolist()
+    confidences = probs.max(-1).values.squeeze().tolist()
+    
     word_ids = encoding.word_ids(batch_index=0)
 
-    model_results = _aggregate_bio_predictions(words, predictions, word_ids, labels)
+    model_results = _aggregate_bio_predictions(words, predictions, confidences, word_ids, labels)
 
-    # Regex fallback for any field where model confidence < threshold or field missing
-    label_keys = [bio_label_to_key(l) for l in labels if l.startswith("B-")]
-    regex_results = extract_all_regex(doc_type, ocr_text, label_keys)
-
-    # Merge: prefer model result if confidence >= threshold, else use regex
-    final: dict[str, tuple[str, float]] = {}
-    for key in label_keys:
-        if key in model_results and model_results[key][1] >= _REGEX_FALLBACK_THRESHOLD:
-            final[key] = model_results[key]
-        elif key in regex_results:
-            final[key] = regex_results[key]
+    # Return all model predictions directly, bypassing regex fallback entirely
+    final = model_results
 
     # Build ExtractedField list
     result = []
@@ -147,7 +159,7 @@ def extract_fields(
             "key": key,
             "label": meta["label"],
             "value": value,
-            "confidence": round(confidence, 2),
+            "confidence": format_confidence(confidence),
             "editable": meta["editable"],
             "monospace": meta["monospace"],
         })

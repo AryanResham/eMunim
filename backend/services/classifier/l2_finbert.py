@@ -1,4 +1,5 @@
 from __future__ import annotations
+from utils.confidence_config import format_prediction_confidence, CLASSIFIER_L2_MAX_TEXT_LENGTH
 
 # Candidate labels in natural language — zero-shot model maps these to DocType values.
 # Using cross-encoder/nli-deberta-v3-small (~200MB) as the default because it is fast
@@ -42,13 +43,13 @@ def classify_l2(text: str) -> tuple[str, float, list[dict]]:
     """
     Returns (top_doc_type, confidence_0_to_1, all_predictions_sorted).
     all_predictions is a list of {"type": DocType, "confidence": float}.
-    Text is truncated to 1500 chars to keep inference fast.
+    Text is truncated to keep inference fast.
     """
     clf = _get_pipeline()
-    result = clf(text[:1500], _CANDIDATE_LABELS, multi_label=False)
+    result = clf(text[:CLASSIFIER_L2_MAX_TEXT_LENGTH], _CANDIDATE_LABELS, multi_label=False)
 
     predictions = [
-        {"type": _LABEL_TO_DOCTYPE[label], "confidence": round(score, 3)}
+        {"type": _LABEL_TO_DOCTYPE[label], "confidence": format_prediction_confidence(score)}
         for label, score in zip(result["labels"], result["scores"])
     ]
 
