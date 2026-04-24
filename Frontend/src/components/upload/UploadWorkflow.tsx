@@ -37,16 +37,20 @@ export function UploadWorkflow() {
   }
 
   // Step 1 → 2
-  async function handleFileReady(file: File) {
-    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null
-    setState((s) => ({ ...s, file, filePreviewUrl: previewUrl, isProcessing: true }))
+  async function handleFilesReady(files: File[]) {
+    if (files.length === 0) return
+    const firstFile = files[0]
+    const previewUrl = firstFile.type.startsWith('image/') ? URL.createObjectURL(firstFile) : null
+    setState((s) => ({ ...s, file: firstFile, filePreviewUrl: previewUrl, isProcessing: true }))
 
     try {
       // 1. Upload
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', firstFile)
+      
       const uploadRes = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData })
-      const uploadData = await uploadRes.json()
+      const uploadDataList = await uploadRes.json()
+      const uploadData = uploadDataList[0]
 
       // 2. OCR
       const ocrRes = await fetch('http://localhost:8000/api/ocr', {
@@ -56,13 +60,9 @@ export function UploadWorkflow() {
       })
       const ocrResult = await ocrRes.json()
 
-      // 3. Classify (Real Backend)
+      // 3. Classify
       const classification = await classifyDocument(uploadData.file_id, ocrResult.full_text)
 
-      void runLayoutLlmTestInference(uploadData.file_id, classification.type, ocrResult).catch((error) => {
-        console.error('Background LayoutLLM test inference failed:', error)
-      })
-      
       setState((s) => ({
         ...s,
         fileId: uploadData.file_id,
@@ -72,6 +72,7 @@ export function UploadWorkflow() {
         processedHeight: uploadData.height,
         isProcessing: false,
       }))
+      
       go(2, 1)
     } catch (error) {
       console.error('Workflow Step 1 failed:', error)
@@ -97,11 +98,11 @@ export function UploadWorkflow() {
 
   // Step 3 → 4
   async function handleExtractProceed() {
-    if (!state.extractedFields) return
+    if (!state.extractedFields || !state.classification) return
     setState((s) => ({ ...s, isProcessing: true }))
     
     try {
-      const validationResult = await validateEntry(state.extractedFields)
+      const validationResult = await validateEntry(state.extractedFields, state.classification.type)
       setState((s) => ({ ...s, validationResult, isProcessing: false }))
       go(4, 1)
     } catch (error) {
@@ -136,7 +137,7 @@ export function UploadWorkflow() {
           >
             {state.step === 1 && (
               <Step1Upload
-                onFileReady={handleFileReady}
+                onFilesReady={handleFilesReady}
                 isProcessing={state.isProcessing}
               />
             )}

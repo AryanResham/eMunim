@@ -88,6 +88,8 @@ FIELD_META: dict[str, dict] = {
     "vendor_gstin":        {"label": "Vendor GSTIN",      "editable": False, "monospace": True},
     "buyer_name":          {"label": "Buyer Name",        "editable": True,  "monospace": False},
     "buyer_gstin":         {"label": "Buyer GSTIN",       "editable": False, "monospace": True},
+    "vendor_address":      {"label": "Vendor Address",    "editable": True,  "monospace": False},
+    "buyer_address":       {"label": "Buyer Address",     "editable": True,  "monospace": False},
     "taxable_amount":      {"label": "Taxable Amount",    "editable": True,  "monospace": True},
     "cgst_amount":         {"label": "CGST",              "editable": True,  "monospace": True},
     "sgst_amount":         {"label": "SGST",              "editable": True,  "monospace": True},

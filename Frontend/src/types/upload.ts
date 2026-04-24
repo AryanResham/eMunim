@@ -15,7 +15,6 @@ export interface ClassificationResult {
   confidence: number
   classifierLevel: 'L1' | 'L2' | 'L3'
   topPredictions?: { type: DocType; confidence: number }[]
-  merchant: string
   date: string
   suggestedSubCategories: string[]
 }

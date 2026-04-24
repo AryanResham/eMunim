@@ -25,7 +25,6 @@ export async function classifyDocument(fileId: string, ocrText: string): Promise
     subCategory: data.sub_category,
     confidence: data.confidence,
     classifierLevel: data.classifier_level,
-    merchant: data.merchant,
     date: data.date,
     suggestedSubCategories: data.suggested_sub_categories,
     topPredictions: data.top_predictions?.map((p: any) => ({
@@ -73,19 +72,25 @@ export async function runLayoutLlmTestInference(
 }
 
 /** Step 3 → 4: Run validation rules (Keep mock for now as backend router isn't ready) */
-export async function validateEntry(fields: ExtractedField[]): Promise<ValidationResult> {
+export async function validateEntry(fields: ExtractedField[], docType: DocType): Promise<ValidationResult> {
   // We will connect this once we implement backend/routers/validate.py
   const res = await fetch(`${API_BASE}/validate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields }), // Adjust based on final schema
+    body: JSON.stringify({ fields, doc_type: docType }), // Adjust based on final schema
   })
   if (!res.ok) {
      // Fallback to mock if not implemented yet
      console.warn("Backend validation not implemented, using mock.")
      return mockValidateEntry(fields)
   }
-  return await res.json()
+  const data = await res.json()
+  return {
+    rules: data.rules,
+    overallPassed: data.overall_passed,
+    errors: data.errors,
+    warnings: data.warnings,
+  }
 }
 
 // Temporary mock for validation until Step 4 is finished

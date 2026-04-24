@@ -120,10 +120,13 @@ def extract_fields(
     processor, model, labels = _get_model(model_key)
 
     # Normalize bboxes to 0-1000
-    normalized_bboxes = [
-        _normalize_bbox(bbox, image_width, image_height)
-        for bbox in bboxes_raw
-    ]
+    normalized_bboxes = []
+    for bbox in bboxes_raw:
+        nb = _normalize_bbox(bbox, image_width, image_height)
+        x0, y0, x1, y1 = nb
+        x0, x1 = sorted([max(0, min(1000, x0)), max(0, min(1000, x1))])
+        y0, y1 = sorted([max(0, min(1000, y0)), max(0, min(1000, y1))])
+        normalized_bboxes.append([x0, y0, x1, y1])
 
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
@@ -148,8 +151,12 @@ def extract_fields(
 
     model_results = _aggregate_bio_predictions(words, predictions, confidences, word_ids, labels)
 
-    # Return all model predictions directly, bypassing regex fallback entirely
-    final = model_results
+    # Filter out low-confidence predictions
+    final = {
+        key: (value, conf)
+        for key, (value, conf) in model_results.items()
+        if conf >= EXTRACTOR_LAYOUTLM_THRESHOLD
+    }
 
     # Build ExtractedField list
     result = []

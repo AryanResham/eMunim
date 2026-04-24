@@ -164,7 +164,7 @@ export function Step2Classify({
           </div>
 
           {/* Metadata */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div
               className="rounded-xl px-4 py-3"
               style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
@@ -175,18 +175,6 @@ export function Step2Classify({
               <div className="flex items-center gap-2">
                 <CalendarDays size={13} style={{ color: '#4B6CB7' }} />
                 <span className="text-sm font-semibold" style={{ color: '#1A1816' }}>{classification.date}</span>
-              </div>
-            </div>
-            <div
-              className="rounded-xl px-4 py-3"
-              style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
-            >
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#A09890' }}>
-                Detected Merchant
-              </p>
-              <div className="flex items-center gap-2">
-                <Store size={13} style={{ color: '#4B6CB7' }} />
-                <span className="text-sm font-semibold truncate" style={{ color: '#1A1816' }}>{classification.merchant}</span>
               </div>
             </div>
           </div>

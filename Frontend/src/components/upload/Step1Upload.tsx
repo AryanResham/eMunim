@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface Step1UploadProps {
-  onFileReady: (file: File) => Promise<void>
+  onFilesReady: (files: File[]) => Promise<void>
   isProcessing: boolean
 }
 
@@ -21,12 +21,16 @@ function FileIcon({ type }: { type: string }) {
   return <Image size={18} style={{ color: '#4B6CB7' }} />
 }
 
-export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
-  const [file, setFile] = useState<File | null>(null)
+export function Step1Upload({ onFilesReady, isProcessing }: Step1UploadProps) {
+  const [files, setFiles] = useState<File[]>([])
 
   const onDrop = useCallback((accepted: File[]) => {
-    if (accepted[0]) setFile(accepted[0])
+    setFiles((prev) => [...prev, ...accepted])
   }, [])
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -39,18 +43,18 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
   })
 
   const handleContinue = async () => {
-    if (!file) return
-    await onFileReady(file)
+    if (files.length === 0) return
+    await onFilesReady(files)
   }
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-2xl mx-auto">
       <div>
         <h2 className="text-2xl font-semibold mb-1" style={{ color: '#1A1816' }}>
-          Upload a document
+          Upload documents
         </h2>
         <p className="text-sm" style={{ color: '#A09890' }}>
-          PDFs, JPEGs, and PNGs — eMunim AI will handle the rest
+          PDFs, JPEGs, and PNGs — upload a document to begin
         </p>
       </div>
 
@@ -59,15 +63,15 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
         {...getRootProps()}
         className="relative rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center text-center cursor-pointer outline-none transition-all duration-200"
         style={{
-          minHeight: 260,
+          minHeight: 200,
           borderColor: isDragActive
             ? '#4B6CB7'
-            : file
+            : files.length > 0
             ? '#16A34A'
             : 'rgba(0,0,0,0.14)',
           backgroundColor: isDragActive
             ? 'rgba(75,108,183,0.05)'
-            : file
+            : files.length > 0
             ? 'rgba(22,163,74,0.03)'
             : 'rgba(0,0,0,0.02)',
         }}
@@ -109,65 +113,53 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
               </motion.div>
               <div>
                 <p className="text-base font-semibold mb-1" style={{ color: '#1A1816' }}>
-                  Drag & drop your document here
+                  Drag & drop documents here
                 </p>
                 <p className="text-sm" style={{ color: '#A09890' }}>
                   or click to browse files
                 </p>
-              </div>
-              <div className="flex gap-2">
-                {['PDF', 'JPEG', 'PNG'].map((fmt) => (
-                  <span
-                    key={fmt}
-                    className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
-                    style={{
-                      background: 'rgba(0,0,0,0.06)',
-                      color: '#A09890',
-                      border: '1px solid rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    {fmt}
-                  </span>
-                ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Selected file chip */}
-      <AnimatePresence>
-        {file && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{
-              background: 'rgba(22,163,74,0.07)',
-              border: '1px solid rgba(22,163,74,0.2)',
-            }}
-          >
-            <FileIcon type={file.type} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: '#1A1816' }}>{file.name}</p>
-              <p className="text-xs" style={{ color: '#A09890' }}>
-                {formatBytes(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); setFile(null) }}
-              className="p-1 rounded-lg transition-colors cursor-pointer"
-              style={{ color: '#A09890' }}
+      {/* Selected files list */}
+      <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+        <AnimatePresence>
+          {files.map((f, idx) => (
+            <motion.div
+              key={`${f.name}-${idx}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+              style={{
+                background: 'rgba(22,163,74,0.07)',
+                border: '1px solid rgba(22,163,74,0.2)',
+              }}
             >
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <FileIcon type={f.type} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: '#1A1816' }}>{f.name}</p>
+                <p className="text-xs" style={{ color: '#A09890' }}>
+                  {formatBytes(f.size)}
+                </p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); removeFile(idx) }}
+                className="p-1 rounded-lg transition-colors cursor-pointer hover:bg-black/5"
+                style={{ color: '#A09890' }}
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 mt-auto">
         <Button
           variant="outline"
           className="flex-1 gap-2 h-10 text-sm cursor-pointer"
@@ -176,25 +168,25 @@ export function Step1Upload({ onFileReady, isProcessing }: Step1UploadProps) {
             background: 'rgba(0,0,0,0.04)',
             color: '#78726A',
           }}
+          onClick={() => setFiles([])}
         >
-          <Link size={15} />
-          Connect Drive
+          Clear all
         </Button>
-        <motion.div whileTap={{ scale: 0.97 }} className={cn('flex-1', !file && 'opacity-40 pointer-events-none')}>
+        <motion.div whileTap={{ scale: 0.97 }} className={cn('flex-1', files.length === 0 && 'opacity-40 pointer-events-none')}>
           <Button
             className="w-full gap-2 h-10 text-white text-sm font-semibold cursor-pointer"
             style={{ background: '#4B6CB7' }}
             onClick={handleContinue}
-            disabled={!file || isProcessing}
+            disabled={files.length === 0 || isProcessing}
           >
             {isProcessing ? (
               <>
                 <Loader2 size={15} className="animate-spin" />
-                Analysing...
+                Processing file...
               </>
             ) : (
               <>
-                Continue
+                Process file
                 <ArrowRight size={15} />
               </>
             )}

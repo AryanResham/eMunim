@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     LAYOUTLLM_API_KEY: str = ""
     LAYOUTLLM_BASE_URL: str = "https://api.openai.com/v1"
     LAYOUTLLM_MODEL: str = "gpt-4.1-mini"
+    GROQ_API_KEY: str = ""
     DATABASE_URL: str = ""
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5174"]
