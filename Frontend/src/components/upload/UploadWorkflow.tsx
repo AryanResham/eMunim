@@ -6,6 +6,7 @@ import { Step2Classify } from './Step2Classify'
 import { Step3Extract } from './Step3Extract'
 import { Step4Validate } from './Step4Validate'
 import { classifyDocument, extractFields, runLayoutLlmTestInference, validateEntry } from '@/api/backend'
+import { authHeaders, triggerLogout } from '@/lib/auth'
 import type { WorkflowState, ClassificationResult } from '@/types/upload'
 
 const INITIAL_STATE: WorkflowState = {
@@ -16,6 +17,7 @@ const INITIAL_STATE: WorkflowState = {
   filePreviewUrl: null,
   classification: null,
   extractedFields: null,
+  lineItems: null,
   validationResult: null,
   ocrResult: null,
   processedWidth: 0,
@@ -45,15 +47,27 @@ export function UploadWorkflow() {
       // 1. Upload
       const formData = new FormData()
       formData.append('file', file)
-      const uploadRes = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData })
+      const uploadRes = await fetch('http://localhost:8000/api/upload', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      })
+      if (uploadRes.status === 401) {
+        triggerLogout()
+        return
+      }
       const uploadData = await uploadRes.json()
 
       // 2. OCR
       const ocrRes = await fetch('http://localhost:8000/api/ocr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ file_id: uploadData.file_id }),
       })
+      if (ocrRes.status === 401) {
+        triggerLogout()
+        return
+      }
       const ocrResult = await ocrRes.json()
 
       // 3. Classify (Real Backend)
@@ -86,8 +100,8 @@ export function UploadWorkflow() {
     setState((s) => ({ ...s, classification: updated, isProcessing: true }))
     
     try {
-      const extractedFields = await extractFields(state.fileId, updated.type, state.ocrResult)
-      setState((s) => ({ ...s, extractedFields, isProcessing: false }))
+      const { fields: extractedFields, lineItems } = await extractFields(state.fileId, updated.type, state.ocrResult)
+      setState((s) => ({ ...s, extractedFields, lineItems, isProcessing: false }))
       go(3, 1)
     } catch (error) {
       console.error('Workflow Step 2 failed:', error)
@@ -97,11 +111,19 @@ export function UploadWorkflow() {
 
   // Step 3 → 4
   async function handleExtractProceed() {
-    if (!state.extractedFields) return
+    if (!state.extractedFields || !state.classification) return
     setState((s) => ({ ...s, isProcessing: true }))
-    
+
     try {
-      const validationResult = await validateEntry(state.extractedFields)
+      const validationResult = await validateEntry(
+        state.extractedFields,
+        state.classification.type,
+        state.fileId ?? '',
+        state.file?.name ?? '',
+        state.ocrResult,
+        state.classification,
+        state.lineItems ?? []
+      )
       setState((s) => ({ ...s, validationResult, isProcessing: false }))
       go(4, 1)
     } catch (error) {

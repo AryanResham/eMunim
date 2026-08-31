@@ -15,7 +15,6 @@ export interface ClassificationResult {
   confidence: number
   classifierLevel: 'L1' | 'L2' | 'L3'
   topPredictions?: { type: DocType; confidence: number }[]
-  merchant: string
   date: string
   suggestedSubCategories: string[]
 }
@@ -27,6 +26,15 @@ export interface ExtractedField {
   confidence: number
   editable: boolean
   monospace?: boolean
+}
+
+export interface LineItem {
+  description: string
+  hsn_sac: string
+  quantity: string
+  unit: string
+  rate: string
+  amount: string
 }
 
 export interface ValidationRule {
@@ -51,6 +59,7 @@ export interface WorkflowState {
   filePreviewUrl: string | null
   classification: ClassificationResult | null
   extractedFields: ExtractedField[] | null
+  lineItems: LineItem[] | null
   validationResult: ValidationResult | null
   ocrResult: OCRResult | null
   processedWidth: number

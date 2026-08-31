@@ -14,5 +14,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+    JWT_SECRET_KEY: str = "dev-secret-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7
 
 settings = Settings()

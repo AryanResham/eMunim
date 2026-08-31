@@ -7,8 +7,11 @@ from models.schemas import OCRResult, OCRWord
 
 VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
 
-# Words below this confidence score are flagged — downstream models should treat them carefully
-CONFIDENCE_THRESHOLD = 0.85
+from utils.confidence_config import (
+    OCR_CONFIDENCE_THRESHOLD,
+    OCR_DEFAULT_WORD_CONFIDENCE,
+    format_ocr_confidence
+)
 
 
 def _fix_numeric(text: str) -> str:
@@ -54,12 +57,12 @@ async def run_vision_ocr(image_bytes: bytes) -> OCRResult:
                     vertices = word.get("boundingBox", {}).get("vertices", [])
                     box = [[v.get("x", 0), v.get("y", 0)] for v in vertices]
 
-                    confidence = word.get("confidence", 1.0)
+                    confidence = word.get("confidence", OCR_DEFAULT_WORD_CONFIDENCE)
 
                     words.append(OCRWord(
                         text=text,
                         bounding_box=box,
-                        confidence=round(confidence, 4),
+                        confidence=format_ocr_confidence(confidence),
                     ))
 
     return OCRResult(full_text=full_text, words=words, page_count=1)

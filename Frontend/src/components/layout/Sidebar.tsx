@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Upload,
   FileText,
+  BarChart3,
   Settings,
   Plus,
   HelpCircle,
@@ -16,16 +17,19 @@ interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   activePage?: string
+  onNavigate?: (page: string) => void
+  onLogout?: () => void
 }
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard' },
   { icon: Upload, label: 'Uploads', id: 'uploads' },
   { icon: FileText, label: 'Records', id: 'records' },
+  { icon: BarChart3, label: 'Insights', id: 'insights' },
   { icon: Settings, label: 'Settings', id: 'settings' },
 ]
 
-export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, activePage = 'uploads', onNavigate, onLogout }: SidebarProps) {
   return (
     <motion.aside
       className="glass-sidebar fixed left-0 top-0 h-screen z-20 flex flex-col overflow-hidden"
@@ -93,6 +97,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
             <motion.button
               key={id}
               whileTap={{ scale: 0.97 }}
+              onClick={() => onNavigate?.(id)}
               className={cn(
                 'relative w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-150 cursor-pointer',
                 isActive
@@ -193,6 +198,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
         </button>
 
         <button
+          onClick={onLogout}
           className="w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-all cursor-pointer"
           style={{ minHeight: 40, color: '#78726A' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}

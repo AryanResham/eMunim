@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Literal
 from pydantic import BaseModel
+from utils.confidence_config import OCR_DEFAULT_WORD_CONFIDENCE
 
 
 class DocType(str, Enum):
@@ -15,7 +16,7 @@ class DocType(str, Enum):
 class OCRWord(BaseModel):
     text: str
     bounding_box: list[list[int]]  # [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]
-    confidence: float = 1.0
+    confidence: float = OCR_DEFAULT_WORD_CONFIDENCE
 
 
 class OCRResult(BaseModel):
@@ -36,7 +37,6 @@ class ClassificationResult(BaseModel):
     confidence: float
     classifier_level: Literal["L1", "L2", "L3"]
     top_predictions: list[TopPrediction] | None = None
-    merchant: str
     date: str
     suggested_sub_categories: list[str]
 

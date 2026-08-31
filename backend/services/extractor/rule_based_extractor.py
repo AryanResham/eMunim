@@ -1,11 +1,12 @@
 """
 Regex-based fallback extractor.
-Used when LayoutLMv3 confidence for a field is below 0.50,
+Used when LayoutLMv3 confidence for a field is below the threshold,
 or when the model is not yet fine-tuned.
 """
 
 from __future__ import annotations
 import re
+from utils.confidence_config import EXTRACTOR_REGEX_CONFIDENCE, EXTRACTOR_LAYOUTLM_THRESHOLD
 
 # Patterns for each field key — each is tried against the full OCR text.
 # Returns the first match group (stripped), or None if not found.
@@ -66,7 +67,7 @@ def extract_field_regex(key: str, text: str) -> tuple[str | None, float]:
         m = pattern.search(text)
         if m:
             value = m.group(1).strip() if m.lastindex else m.group(0).strip()
-            return value, 0.65
+            return value, EXTRACTOR_REGEX_CONFIDENCE
     return None, 0.0
 
 
