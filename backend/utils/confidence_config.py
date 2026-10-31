@@ -35,11 +35,17 @@ L1_GSTIN_ONLY_CONFIDENCE = 0.75
 # Default confidence for regex-based extraction (fixed because regex is binary)
 EXTRACTOR_REGEX_CONFIDENCE = 0.65
 
-# If LayoutLM confidence for a field is below this, we might flag it or fallback
+# If LayoutLM confidence for a field is below this, we might flag it or fallback.
+# Calibrated by `layoutLM model/threshold_sweep.py` over all six doc types: the
+# per-type F1-maximising tau* falls in [0.40, 0.60] and the stable plateau (taus
+# within 1e-4 of the best mean field F1) covers 0.50 for every doc type, so 0.50
+# is the cross-type-robust choice. Curves: evaluation/threshold_curve_<type>.json.
 EXTRACTOR_LAYOUTLM_THRESHOLD = 0.50
 
-# Confidence score assigned to fields extracted by the LayoutLLM (GPT-4) engine
-LAYOUTLLM_LLM_CONFIDENCE = 0.90
+# Confidence score assigned to fields extracted by the local Qwen3-VL engine.
+# The model provides no calibrated confidence, so we use a fixed score.
+# Kept on the 0-100 percentage scale to match LayoutLM extractor output.
+VLM_FIELD_CONFIDENCE = 88.0
 
 
 # --- Math & Validation Tolerances ---

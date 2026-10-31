@@ -1,0 +1,7 @@
+{
+  "version": "policy-v1",
+  "selected_on": "development",
+  "status": "example-only; replace after development calibration",
+  "review_threshold": 75,
+  "fallback_threshold": 60
+}

@@ -1,103 +1,38 @@
-import type {
-  ClassificationResult,
-  DocType,
-  ExtractedField,
-  ValidationResult,
-} from '@/types/upload'
+import type { Capabilities, ClassificationResult, DocType, ExtractedField, ExtractionRun, Pipeline, ReviewPolicy, SavedDocument, ValidationResult } from '@/types/upload'
 import type { OCRResult } from '@/types/ocr'
 
-const API_BASE = 'http://localhost:8000/api'
-
-/** Step 1 → 2: Classify the uploaded document using the real backend */
+export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
+export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(API_BASE + path, options)
+  if (!response.ok) {
+    let message = response.statusText
+    try { const data = await response.json(); message = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail) } catch { /* retain status */ }
+    throw new Error(message || 'Request failed')
+  }
+  return response.json()
+}
+export function post<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+}
+export const capabilities = () => request<Capabilities>('/capabilities')
+export async function uploadFile(file: File) {
+  const form = new FormData(); form.append('file', file)
+  const uploaded = await request<{file_id:string; width:number; height:number}[]>('/upload', {method:'POST',body:form})
+  return uploaded[0]
+}
+export const runOcr = (fileId: string) => post<OCRResult>('/ocr', {file_id:fileId})
 export async function classifyDocument(fileId: string, ocrText: string): Promise<ClassificationResult> {
-  const res = await fetch(`${API_BASE}/classify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file_id: fileId, ocr_text: ocrText }),
-  })
-  if (!res.ok) throw new Error('Classification failed')
-  const data = await res.json()
-
-  // Map snake_case from backend to camelCase for frontend
-  return {
-    type: data.type,
-    label: data.label,
-    subCategory: data.sub_category,
-    confidence: data.confidence,
-    classifierLevel: data.classifier_level,
-    date: data.date,
-    suggestedSubCategories: data.suggested_sub_categories,
-    topPredictions: data.top_predictions?.map((p: any) => ({
-      type: p.type,
-      confidence: p.confidence,
-    })),
-  }
+  const data = await post<{type:DocType; label:string; sub_category:string; confidence:number; classifier_level:'L1'|'L2'|'L3'; date:string; suggested_sub_categories:string[]; top_predictions?:{type:DocType;confidence:number}[]}>('/classify', {file_id:fileId,ocr_text:ocrText})
+  return {type:data.type,label:data.label,subCategory:data.sub_category,confidence:data.confidence,classifierLevel:data.classifier_level,date:data.date,suggestedSubCategories:data.suggested_sub_categories,topPredictions:data.top_predictions}
 }
-
-/** Step 2 → 3: Extract structured fields from the classified document */
-export async function extractFields(
-  fileId: string,
-  docType: DocType,
-  ocrResult: OCRResult
-): Promise<ExtractedField[]> {
-  const res = await fetch(`${API_BASE}/extract`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      file_id: fileId,
-      doc_type: docType,
-      ocr_result: ocrResult,
-    }),
-  })
-  if (!res.ok) throw new Error('Extraction failed')
-  const data = await res.json()
-  return data.fields // Backend returns { fields: [...], line_items: [...] }
+export const validationResult = (data: ValidationResult & {overall_passed?:boolean}): ValidationResult => ({...data,overallPassed:data.overall_passed ?? data.overallPassed})
+export async function extractFields(fileId:string,docType:DocType,ocrResult:OCRResult|null,pipeline:Pipeline='ocr_layoutlm',policy:ReviewPolicy='validation_review',businessRole:'buyer'|'vendor'='buyer'):Promise<ExtractionRun> {
+  const data = await post<ExtractionRun>('/extract', {file_id:fileId,doc_type:docType,ocr_result:ocrResult,pipeline,review_policy:policy,classification_confirmed:true,business_role:businessRole})
+  return {...data,validation:validationResult(data.validation)}
 }
-
-export async function runLayoutLlmTestInference(
-  fileId: string,
-  docType: DocType,
-  ocrResult: OCRResult
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/layoutllm-test-inference`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      file_id: fileId,
-      doc_type: docType,
-      ocr_result: ocrResult,
-    }),
-  })
-  if (!res.ok) throw new Error('LayoutLLM test inference failed')
+export async function validateEntry(fields:ExtractedField[],docType:DocType,policy:ReviewPolicy='validation_review',runId?:string):Promise<ValidationResult> {
+  return validationResult(await post<ValidationResult>('/validate', {fields,doc_type:docType,policy,run_id:runId}))
 }
-
-/** Step 3 → 4: Run validation rules (Keep mock for now as backend router isn't ready) */
-export async function validateEntry(fields: ExtractedField[], docType: DocType): Promise<ValidationResult> {
-  // We will connect this once we implement backend/routers/validate.py
-  const res = await fetch(`${API_BASE}/validate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields, doc_type: docType }), // Adjust based on final schema
-  })
-  if (!res.ok) {
-     // Fallback to mock if not implemented yet
-     console.warn("Backend validation not implemented, using mock.")
-     return mockValidateEntry(fields)
-  }
-  const data = await res.json()
-  return {
-    rules: data.rules,
-    overallPassed: data.overall_passed,
-    errors: data.errors,
-    warnings: data.warnings,
-  }
-}
-
-// Temporary mock for validation until Step 4 is finished
-async function mockValidateEntry(fields: ExtractedField[]): Promise<ValidationResult> {
-  const hasAmount = fields.some((f) => ['amount', 'total_amount', 'amount_due'].includes(f.key))
-  const rules = [
-    { name: 'Math Verification', passed: hasAmount, message: hasAmount ? 'Totals match' : 'Amount missing', severity: 'error' as const },
-  ]
-  return { rules, overallPassed: hasAmount, errors: [], warnings: [] }
-}
+export const saveDocument = (runId:string,fields:ExtractedField[],reason:string) => post<SavedDocument>('/documents', {run_id:runId,fields,confirmed:true,override_reason:reason})
+export const listDocuments = (params:string='') => request<{items:SavedDocument[];total:number}>('/documents?'+params)
+export const summary = () => request<{count:number;with_issues:number;by_type:Record<string,{count:number;printed_amount_total:string;amount_count:number}>;note:string}>('/documents/summary')

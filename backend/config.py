@@ -1,19 +1,44 @@
+"""Backend settings. Paths are rooted here, independent of the launch directory."""
 import os
+from pathlib import Path
+from typing import Annotated
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BeforeValidator, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
 
-ENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".env"))
-load_dotenv(dotenv_path=ENV_PATH)
+ROOT = Path(__file__).resolve().parent
+ENV_PATH = str(ROOT / ".env")
+load_dotenv(ENV_PATH)
+
+def origins(value):
+    if isinstance(value, str):
+        import json
+        return json.loads(value) if value.strip().startswith("[") else [x.strip() for x in value.split(",") if x.strip()]
+    return value
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=ENV_PATH, env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=ENV_PATH, extra="ignore")
     GOOGLE_CLOUD_VISION_API_KEY: str = ""
-    LAYOUTLLM_API_KEY: str = ""
-    LAYOUTLLM_BASE_URL: str = "https://api.openai.com/v1"
-    LAYOUTLLM_MODEL: str = "gpt-4.1-mini"
+    GOOGLE_VISION_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    GOOGLE_VISION_TIMEOUT_SECONDS: float = Field(30, ge=1, le=120)
     GROQ_API_KEY: str = ""
+    HOSTED_VLM_MODEL: str = ""
+    HOSTED_VLM_BASE_URL: str = "https://api.groq.com/openai/v1"
+    HOSTED_VLM_TIMEOUT_SECONDS: float = Field(60, gt=0, le=300)
+    HOSTED_VLM_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    HOSTED_VLM_MAX_RETRY_WAIT_SECONDS: float = Field(30, ge=0, le=60)
+    HOSTED_VLM_MIN_INTERVAL_SECONDS: float = Field(0, ge=0, le=60)
+    HOSTED_VLM_MAX_OUTPUT_TOKENS: int = Field(2048, ge=128, le=8192)
+    HOSTED_VLM_CACHE: bool = True
+    REVIEW_THRESHOLD: float = Field(75, ge=0, le=100)
+    FALLBACK_THRESHOLD: float = Field(60, ge=0, le=100)
     DATABASE_URL: str = ""
+    DATA_DIR: str = str(ROOT / "data")
+    LAYOUTLM_MODEL_ROOT: str = str(ROOT.parent / "layoutLM__model")
+    LAYOUTLM_DEVICE: str = Field("auto", pattern="^(auto|cpu|cuda)$")
+    RESEARCH_REPORT_DIR: str = str(ROOT / "data/paper_runs")
+    MAX_UPLOAD_MB: int = Field(10, ge=1, le=20)
     ENVIRONMENT: str = "development"
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+    ALLOWED_ORIGINS: Annotated[list[str], NoDecode, BeforeValidator(origins)] = ["http://localhost:5173", "http://localhost:5174"]
 
 settings = Settings()

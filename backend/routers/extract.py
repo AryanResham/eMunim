@@ -1,101 +1,53 @@
+import io
+from PIL import Image
 from fastapi import APIRouter, HTTPException
+from typing import Literal
 from pydantic import BaseModel
-
-from routers.upload import FILE_STORE
-from utils.confidence_config import OCR_DEFAULT_WORD_CONFIDENCE
-from services.extractor.layoutlm_extractor import extract_fields
-from services.extractor.table_parser import parse_line_items
-from tests.layoutllm_real_flow import run_layoutllm_real_flow
-
+from models.schemas import DocType, Pipeline, ReviewPolicy, OCRResult
+from services.storage import load_image, save_run
+from services.errors import HostedError, ServiceUnavailable
+from services.extractor.pipeline import run_pipeline
 router = APIRouter()
-
-
-class OCRWordRequest(BaseModel):
-    text: str
-    bounding_box: list[list[int]]
-    confidence: float = OCR_DEFAULT_WORD_CONFIDENCE
-
-
-class OCRResultRequest(BaseModel):
-    full_text: str
-    words: list[OCRWordRequest]
-    page_count: int = 1
-
-
 class ExtractRequest(BaseModel):
+    classification_confirmed: bool = False
+    business_role: Literal["buyer", "vendor"] = "buyer"
     file_id: str
-    doc_type: str
-    ocr_result: OCRResultRequest
-    model_type: str = "indian"
-
+    doc_type: DocType
+    ocr_result: OCRResult | None = None
+    pipeline: Pipeline = "ocr_layoutlm"
+    review_policy: ReviewPolicy = "validation_review"
 
 @router.post("/extract")
 def extract(request: ExtractRequest):
-    if request.file_id not in FILE_STORE:
-        raise HTTPException(status_code=404, detail="File not found — upload the file first via /api/upload")
-
-    image_bytes = FILE_STORE[request.file_id]
-
-    # Determine image dimensions for bbox normalization
-    from PIL import Image
-    import io
-    img = Image.open(io.BytesIO(image_bytes))
-    width, height = img.size
-
-    words = [w.text for w in request.ocr_result.words]
-    bboxes_raw = [w.bounding_box for w in request.ocr_result.words]
-
-    indian_fields = extract_fields(
-        image_bytes=image_bytes,
-        words=words,
-        bboxes_raw=bboxes_raw,
-        image_width=width,
-        image_height=height,
-        doc_type=request.doc_type,
-        ocr_text=request.ocr_result.full_text,
-        model_key="indian",
-    )
-
+    if not request.classification_confirmed:
+        raise HTTPException(422, "Confirm the document classification before extraction.")
+    from services.business_profile import load_profile, assess_parties
+    profile = load_profile()
+    if profile is None:
+        raise HTTPException(422, "Complete business onboarding before extraction.")
     try:
-        synthetic_fields = extract_fields(
-            image_bytes=image_bytes,
-            words=words,
-            bboxes_raw=bboxes_raw,
-            image_width=width,
-            image_height=height,
-            doc_type=request.doc_type,
-            ocr_text=request.ocr_result.full_text,
-            model_key="synthetic",
-        )
-        
-        # Modify synthetic fields to avoid key collisions and make them distinguishable
-        for f in synthetic_fields:
-            f["key"] = f"synthetic_{f['key']}"
-            f["label"] = f"{f['label']} (Synthetic)"
-            
-    except Exception as e:
-        print(f"Failed to load synthetic model: {e}")
-        synthetic_fields = []
-
-    combined_fields = indian_fields + synthetic_fields
-
-    line_items = parse_line_items(
-        [w.model_dump() for w in request.ocr_result.words]
-    )
-
-    return {"fields": combined_fields, "line_items": line_items}
-
-
-@router.post("/layoutllm-test-inference")
-def layoutllm_test_inference(request: ExtractRequest):
-    if request.file_id not in FILE_STORE:
-        raise HTTPException(status_code=404, detail="File not found - upload the file first via /api/upload")
-
-    image_bytes = FILE_STORE[request.file_id]
-
-    return run_layoutllm_real_flow(
-        image_bytes=image_bytes,
-        file_name=f"{request.file_id}.jpg",
-        ocr_result=request.ocr_result.model_dump(),
-        doc_type=request.doc_type,
-    )
+        image = load_image(request.file_id)
+    except (ValueError, FileNotFoundError):
+        raise HTTPException(404, "Upload not found.")
+    with Image.open(io.BytesIO(image)) as img:
+        width, height = img.size
+    try:
+        result = run_pipeline(pipeline=request.pipeline, image_bytes=image,
+            ocr_result=request.ocr_result.model_dump() if request.ocr_result else None,
+            doc_type=request.doc_type.value, image_width=width, image_height=height,
+            review_policy=request.review_policy)
+    except (ServiceUnavailable, ImportError):
+        raise HTTPException(503, "LayoutLM unavailable. Train/configure the per-type checkpoint and restart the backend.")
+    except HostedError as exc:
+        raise HTTPException(503, str(exc))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    identity = assess_parties(result["fields"], profile, request.business_role)
+    result["metadata"]["business_identity"] = identity
+    result["metadata"]["business_profile"] = profile
+    result["metadata"]["operational_reasons"].extend(identity["reasons"])
+    from services.validator.rules_engine import review_document
+    result["validation"] = review_document(request.doc_type.value, result["fields"], request.review_policy,
+        result["metadata"]["operational_reasons"], result["metadata"]["conflicts"])
+    result.update(file_id=request.file_id, doc_type=request.doc_type.value, review_policy=request.review_policy)
+    return save_run(result)

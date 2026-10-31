@@ -1,0 +1,10 @@
+# Existing CUDA-enabled torch installation is retained; do not replace it with CPU torch.
+torch==2.11.0
+transformers==5.6.0
+numpy
+Pillow
+requests
+huggingface-hub
+safetensors
+pyarrow
+seqeval

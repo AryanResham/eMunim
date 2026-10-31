@@ -30,10 +30,11 @@ _pipeline = None
 def _get_pipeline():
     global _pipeline
     if _pipeline is None:
-        from transformers import pipeline
+        from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
         _pipeline = pipeline(
             "zero-shot-classification",
-            model=_MODEL_NAME,
+            model=AutoModelForSequenceClassification.from_pretrained(_MODEL_NAME, local_files_only=True),
+            tokenizer=AutoTokenizer.from_pretrained(_MODEL_NAME, local_files_only=True),
             device=-1,  # CPU; change to 0 for GPU
         )
     return _pipeline

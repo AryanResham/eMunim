@@ -1,25 +1,22 @@
-# Phase 0 — Core server
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
-python-multipart==0.0.9
-pydantic==2.7.0
-pydantic-settings==2.3.0
-python-dotenv==1.0.0
-httpx==0.27.0
-pillow==10.4.0
-pdf2image==1.17.0
+# API / settings
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.18
+pydantic>=2.9,<3
+pydantic-settings>=2.7,<3
+python-dotenv>=1,<2
+httpx>=0.27,<1
+pillow>=10.4,<13
+numpy>=1.26,<3
 
-# Phase 1 — OCR (Aryan)
-# google-cloud-vision==3.7.4
-numpy==1.26.4
+# LayoutLM inference only; no local VLM dependency
+transformers==5.6.0
+torch>=2.4
+sentencepiece>=0.2
 
-# Phase 2 & 3 — Classification + Extraction (Ayan)
-transformers==4.44.0
-torch==2.4.0
-sentencepiece==0.2.0
-datasets==2.20.0
+# Both PostgreSQL and SQLite are supported
+sqlalchemy>=2.0,<3
+psycopg[binary]>=3.2,<4
 
-# Phase 5 — Database
-# sqlalchemy==2.0.31
-# alembic==1.13.2
-# psycopg2-binary==2.9.9
+# Development verification
+pytest>=8

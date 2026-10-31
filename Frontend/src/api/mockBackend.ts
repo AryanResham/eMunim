@@ -109,7 +109,7 @@ const EXTRACTED_FIELDS: Record<DocType, ExtractedField[]> = {
     { key: 'bill_no',       label: 'Bill No.',         value: 'PB-2026-0421',               confidence: 92, editable: false, monospace: true },
     { key: 'bill_date',     label: 'Bill Date',        value: 'Apr 8, 2026',                confidence: 98, editable: true },
     { key: 'vendor_name',   label: 'Vendor Name',      value: 'Sharma Traders',             confidence: 97, editable: true },
-    { key: 'vendor_gstin',  label: 'Vendor GSTIN',     value: '07AAEFS1234B1Z5',            confidence: 89, editable: false, monospace: true },
+    { key: 'vendor_gstin',  label: 'Vendor GSTIN',     value: '07AAEFS1232B1Z5',            confidence: 89, editable: false, monospace: true },
     { key: 'subtotal',      label: 'Subtotal',         value: '₹12,000.00',                 confidence: 96, editable: true, monospace: true },
     { key: 'tax_amount',    label: 'Tax',              value: '₹2,160.00',                  confidence: 93, editable: true, monospace: true },
     { key: 'total_amount',  label: 'Total',            value: '₹14,160.00',                 confidence: 97, editable: true, monospace: true },

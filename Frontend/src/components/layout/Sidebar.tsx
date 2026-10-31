@@ -6,7 +6,6 @@ import {
   Settings,
   Plus,
   HelpCircle,
-  LogOut,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -16,6 +15,7 @@ interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   activePage?: string
+  onNavigate?: (page: string) => void
 }
 
 const navItems = [
@@ -23,9 +23,10 @@ const navItems = [
   { icon: Upload, label: 'Uploads', id: 'uploads' },
   { icon: FileText, label: 'Records', id: 'records' },
   { icon: Settings, label: 'Settings', id: 'settings' },
+  { icon: FileText, label: 'Research', id: 'research' },
 ]
 
-export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, activePage = 'uploads', onNavigate }: SidebarProps) {
   return (
     <motion.aside
       className="glass-sidebar fixed left-0 top-0 h-screen z-20 flex flex-col overflow-hidden"
@@ -40,7 +41,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
       >
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm"
-          style={{ background: 'linear-gradient(135deg, #4B6CB7, #3454a0)' }}
+          style={{ background: 'linear-gradient(135deg, #2B6CB7, #3454a0)' }}
         >
           eM
         </div>
@@ -67,6 +68,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
 
         {/* Toggle — always inside sidebar */}
         <motion.button
+          aria-label={collapsed?'Expand navigation':'Collapse navigation'}
           whileTap={{ scale: 0.93 }}
           onClick={onToggle}
           className={cn(
@@ -92,6 +94,8 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
           return (
             <motion.button
               key={id}
+              aria-label={label}
+              onClick={() => onNavigate?.(id)}
               whileTap={{ scale: 0.97 }}
               className={cn(
                 'relative w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-150 cursor-pointer',
@@ -114,7 +118,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
               <Icon
                 size={17}
                 className="flex-shrink-0"
-                style={{ color: isActive ? '#4B6CB7' : '#78726A' }}
+                style={{ color: isActive ? '#2B6CB7' : '#78726A' }}
               />
               <AnimatePresence>
                 {!collapsed && (
@@ -133,7 +137,7 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
                 <motion.div
                   layoutId="active-indicator"
                   className="absolute right-0 w-0.5 h-5 rounded-l-full"
-                  style={{ background: '#4B6CB7' }}
+                  style={{ background: '#2B6CB7' }}
                 />
               )}
             </motion.button>
@@ -141,77 +145,12 @@ export function Sidebar({ collapsed, onToggle, activePage = 'uploads' }: Sidebar
         })}
       </nav>
 
-      {/* Bottom actions */}
-      <div
-        className="px-2 pb-4 pt-3 border-t space-y-0.5 flex-shrink-0"
-        style={{ borderColor: 'rgba(0,0,0,0.08)' }}
-      >
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          className="w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-semibold transition-all duration-150 cursor-pointer text-white"
-          style={{
-            background: '#4B6CB7',
-            minHeight: 40,
-          }}
-        >
-          <Plus size={17} className="flex-shrink-0" />
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -6 }}
-                transition={{ duration: 0.13 }}
-                className="ml-2.5 whitespace-nowrap"
-              >
-                New Entry
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </motion.button>
-
-        <button
-          className="w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-all cursor-pointer"
-          style={{ minHeight: 40, color: '#78726A' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        >
-          <HelpCircle size={17} className="flex-shrink-0" />
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -6 }}
-                transition={{ duration: 0.13 }}
-                className="ml-2.5 whitespace-nowrap"
-              >
-                Support
-              </motion.span>
-            )}
-          </AnimatePresence>
+      <div className="px-2 pb-4 pt-3 border-t">
+        <button onClick={() => onNavigate?.('uploads')} className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-white" style={{background:'#2B6CB7'}}>
+          <Plus size={17}/>{!collapsed && 'Upload workspace'}
         </button>
-
-        <button
-          className="w-full flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-all cursor-pointer"
-          style={{ minHeight: 40, color: '#78726A' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        >
-          <LogOut size={17} className="flex-shrink-0" />
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -6 }}
-                transition={{ duration: 0.13 }}
-                className="ml-2.5 whitespace-nowrap"
-              >
-                Logout
-              </motion.span>
-            )}
-          </AnimatePresence>
+        <button onClick={() => onNavigate?.('settings')} className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm">
+          <HelpCircle size={17}/>{!collapsed && 'Setup and service status'}
         </button>
       </div>
     </motion.aside>

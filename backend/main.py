@@ -1,10 +1,20 @@
+from contextlib import asynccontextmanager
+from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import upload, ocr, classify, extract, validate, documents
+from routers import upload, ocr, classify, extract, validate, documents, capabilities, research
 
-app = FastAPI(title="eMunim API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app):
+    from services.model_registry import preload_models
+    await run_in_threadpool(preload_models)
+    yield
+
+app = FastAPI(title="eMunim API", version="0.1.0", lifespan=lifespan)
+from routers import business
+app.include_router(business.router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +30,8 @@ app.include_router(classify.router,  prefix="/api")
 app.include_router(extract.router,   prefix="/api")
 app.include_router(validate.router,  prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(capabilities.router, prefix="/api")
+app.include_router(research.router, prefix="/api")
 
 
 @app.get("/api/health")

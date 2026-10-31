@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>eMunim research annotations</title>
+<style>
+body{font:15px system-ui;margin:20px;background:#f5f7fa;color:#172536}header{display:flex;gap:12px;align-items:center;margin-bottom:16px}main{display:grid;grid-template-columns:55% 45%;gap:16px}aside{height:85vh;overflow:auto}img{width:100%;background:white}section{height:85vh;overflow:auto;padding-right:25px}label{display:block;margin:10px 0}input,select,textarea,button{font:inherit;padding:7px;box-sizing:border-box}input[type=text],textarea{width:100%}.field{display:grid;grid-template-columns:1fr auto;gap:8px;border-bottom:1px solid #ccd3dc;padding:8px 0}.field label{margin:0}button{cursor:pointer}#message{white-space:pre-wrap} @media(max-width:800px){main{grid-template-columns:1fr}aside,section{height:auto}}
+</style>
+<header><strong>Research annotation</strong><select id="documents"></select><button id="save">Save</button><span id="message" role="status"></span></header>
+<main><aside><a id="full" target="_blank">Open full image</a><img id="image" alt="Document being annotated"></aside><section>
+<p>Transcribe printed values. Blank means absent only after checking “reviewed”. Leave ambiguous documents as drafts or exclude them. Save before switching documents.</p>
+<div id="metadata"></div><div id="fields"></div>
+</section></main>
+<script>
+let data,schemas,current,dirty=false;
+const $=id=>document.getElementById(id);
+const names=['group','vendor_group','template_group','annotator','verifier','notes'];
+function show(index, draft){
+ current=structuredClone(draft||data.documents[index]);$('image').src='/image/'+current.id;$('full').href=$('image').src;
+ $('metadata').replaceChildren();$('fields').replaceChildren();
+ let typeLabel=document.createElement('label');typeLabel.textContent='Document type ';let typeSelect=document.createElement('select');for(const name of Object.keys(schemas))typeSelect.add(new Option(name,name));typeSelect.value=current.doc_type;typeLabel.append(typeSelect);$('metadata').append(typeLabel);typeSelect.onchange=()=>{if(!confirm('Change type and clear current field annotations?')){typeSelect.value=current.doc_type;return}for(const key of names)current[key]=$(key).value.trim();current.split=$('split').value;current.doc_type=typeSelect.value;current.fields=Object.fromEntries(schemas[current.doc_type].map(k=>[k,null]));current.reviewed_fields=[];current.status='draft';show(Number($('documents').value),current);dirty=true};
+ for(const key of names){let label=document.createElement('label');label.textContent=key.replaceAll('_',' ');let input=document.createElement('input');input.type='text';input.id=key;input.value=current[key]||'';label.append(input);$('metadata').append(label)}
+ for(const [key,options] of [['split',['development','test']],['status',['draft','verified','excluded']]]){let label=document.createElement('label');label.textContent=key;let select=document.createElement('select');select.id=key;for(const value of options){let o=new Option(value,value);select.add(o)}select.value=current[key];label.append(select);$('metadata').append(label)}
+ for(const [key,value] of Object.entries(current.fields)){let row=document.createElement('div');row.className='field';let label=document.createElement('label');label.textContent=key;let input=document.createElement('input');input.type='text';input.id='field-'+key;input.value=value??'';label.append(input);let checked=document.createElement('label');checked.textContent='reviewed ';let box=document.createElement('input');box.type='checkbox';box.id='review-'+key;box.checked=current.reviewed_fields.includes(key);checked.append(box);row.append(label,checked);$('fields').append(row)}
+ dirty=false;$('message').textContent=current.doc_type;
+}
+$('documents').onchange=()=>{if(dirty&&!confirm('Discard unsaved changes?')){$('documents').value=data.documents.findIndex(d=>d.id===current.id);return}show(Number($('documents').value))};
+document.querySelector('section').oninput=()=>{dirty=true};
+window.onbeforeunload=()=>dirty?true:undefined;
+$('save').onclick=async()=>{try{const update={...current,fields:{},reviewed_fields:[]};for(const key of names)update[key]=$(key).value.trim();for(const key of ['split','status'])update[key]=$(key).value;for(const key of Object.keys(current.fields)){update.fields[key]=$('field-'+key).value.trim()||null;if($('review-'+key).checked)update.reviewed_fields.push(key)}let response=await fetch('/api/annotations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(update)});let result=await response.json();if(!response.ok)throw Error(result.error);current=structuredClone(update);data.documents[Number($('documents').value)]=structuredClone(update);dirty=false;$('message').textContent='Saved '+current.status}catch(e){$('message').textContent=e.message}};
+Promise.all(['/api/annotations','/api/schema'].map(path=>fetch(path).then(r=>r.json()))).then(([payload,types])=>{data=payload;schemas=types;for(const [i,d]of data.documents.entries())$('documents').add(new Option(d.original_name+' · '+d.id,i));if(data.documents.length)show(0);else $('message').textContent='Import documents first.'}).catch(e=>$('message').textContent=e.message);
+</script></html>

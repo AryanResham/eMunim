@@ -12,7 +12,7 @@ from utils.confidence_config import EXTRACTOR_REGEX_CONFIDENCE, EXTRACTOR_LAYOUT
 # Returns the first match group (stripped), or None if not found.
 _PATTERNS: dict[str, list[re.Pattern]] = {
     "invoice_no": [
-        re.compile(r'Invoice\s*(?:No\.?|Number|#)\s*[:\-]?\s*([A-Z0-9\-/]+)', re.I),
+        re.compile(r'Invoice\s*(?:No\.?|Number|#)(?![A-Za-z])\s*[:\-]?\s*([A-Z0-9\-/]+)', re.I),
         re.compile(r'INV[.\-/]?\d{2,}', re.I),
     ],
     "invoice_date": [

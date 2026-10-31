@@ -1,11 +1,14 @@
 import base64
 import re
+import asyncio
+import time
 import httpx
 from fastapi import HTTPException
 from config import settings
 from models.schemas import OCRResult, OCRWord
 
 VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
+OCR_VERSION = "vision-raw-v2"
 
 from utils.confidence_config import (
     OCR_CONFIDENCE_THRESHOLD,
@@ -34,7 +37,7 @@ async def run_vision_ocr(image_bytes: bytes) -> OCRResult:
         }]
     }
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=settings.GOOGLE_VISION_TIMEOUT_SECONDS) as client:
         response = await client.post(
             VISION_URL,
             params={"key": settings.GOOGLE_CLOUD_VISION_API_KEY},
@@ -43,7 +46,10 @@ async def run_vision_ocr(image_bytes: bytes) -> OCRResult:
         response.raise_for_status()
 
     data = response.json()
-    annotation = data["responses"][0].get("fullTextAnnotation", {})
+    payload_response = (data.get("responses") or [{}])[0]
+    if payload_response.get("error"):
+        raise HTTPException(502, "Google Vision could not process this image.")
+    annotation = payload_response.get("fullTextAnnotation", {})
     full_text = annotation.get("text", "")
 
     words: list[OCRWord] = []
@@ -52,7 +58,6 @@ async def run_vision_ocr(image_bytes: bytes) -> OCRResult:
             for para in block.get("paragraphs", []):
                 for word in para.get("words", []):
                     text = "".join(s["text"] for s in word.get("symbols", []))
-                    text = _fix_numeric(text)
 
                     vertices = word.get("boundingBox", {}).get("vertices", [])
                     box = [[v.get("x", 0), v.get("y", 0)] for v in vertices]
@@ -70,11 +75,21 @@ async def run_vision_ocr(image_bytes: bytes) -> OCRResult:
 
 async def ocr_document(image_bytes: bytes) -> OCRResult:
     if not settings.GOOGLE_CLOUD_VISION_API_KEY:
-        raise HTTPException(503, "OCR unavailable — set GOOGLE_CLOUD_VISION_API_KEY in .env")
-
-    try:
-        return await run_vision_ocr(image_bytes)
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Vision API error: {e.response.status_code}")
-    except httpx.RequestError:
-        raise HTTPException(503, "Could not reach Vision API — check your connection")
+        raise HTTPException(503, "OCR unavailable — set GOOGLE_CLOUD_VISION_API_KEY in .env", headers={"X-OCR-Attempts":"0"})
+    started=time.perf_counter()
+    for attempt in range(1,settings.GOOGLE_VISION_MAX_ATTEMPTS+1):
+        try:
+            result=await run_vision_ocr(image_bytes)
+            result.metadata={"provider":"google_vision","version":OCR_VERSION,"attempts":attempt,"elapsed_ms":round((time.perf_counter()-started)*1000,2)}
+            return result
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (429,500,502,503,504) and attempt<settings.GOOGLE_VISION_MAX_ATTEMPTS:
+                await asyncio.sleep(attempt);continue
+            raise HTTPException(502,f"Vision API error: {exc.response.status_code}",headers={"X-OCR-Attempts":str(attempt)})
+        except httpx.RequestError:
+            if attempt<settings.GOOGLE_VISION_MAX_ATTEMPTS:
+                await asyncio.sleep(attempt);continue
+            raise HTTPException(503,"Could not reach Vision API — check your connection",headers={"X-OCR-Attempts":str(attempt)})
+        except HTTPException as exc:
+            exc.headers={**(exc.headers or {}),"X-OCR-Attempts":str(attempt)}
+            raise

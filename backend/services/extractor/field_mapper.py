@@ -80,6 +80,19 @@ LABEL_SETS: dict[str, list[str]] = {
     ],
 }
 
+# Per-doc-type fine-tuned model folder (under `layoutLM model/`). Keys are the
+# production doc_type enum values. Only add entries once that doc type has been
+# trained; the extractor falls back to the merged model when no folder is mapped
+# or the folder has no weights.
+DOC_TYPE_TO_MODEL: dict[str, str] = {
+    "GST_INVOICE": "layoutlm-synthetic-tax_invoice-trained",
+    "DEBIT_NOTE": "layoutlm-synthetic-debit_note-trained",
+    "CREDIT_NOTE": "layoutlm-synthetic-credit_note-trained",
+    "PURCHASE_BILL": "layoutlm-synthetic-purchase_bill-trained",
+    "EXPENSE_RECEIPT": "layoutlm-synthetic-expense_receipt-trained",
+    "UTILITY_BILL": "layoutlm-synthetic-utility_bill-trained",
+}
+
 # Human-readable labels and display flags per field key
 FIELD_META: dict[str, dict] = {
     "invoice_no":          {"label": "Invoice No.",       "editable": False, "monospace": True},
@@ -140,3 +153,8 @@ def bio_label_to_key(bio_label: str) -> str:
 
 def get_field_meta(key: str) -> dict:
     return FIELD_META.get(key, {"label": key.replace("_", " ").title(), "editable": True, "monospace": False})
+
+
+def get_model_folder(doc_type: str) -> str | None:
+    """Per-doc-type model folder name for a production doc_type enum value."""
+    return DOC_TYPE_TO_MODEL.get(doc_type)

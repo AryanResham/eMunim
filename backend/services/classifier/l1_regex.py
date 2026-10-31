@@ -20,10 +20,11 @@ _RULES: list[tuple[re.Pattern, str, float]] = [
     (re.compile(r'\bCREDIT\s+NOTE\b', re.I),                              'CREDIT_NOTE',     L1_CONF_CREDIT_NOTE),
     (re.compile(r'\bDEBIT\s+NOTE\b', re.I),                               'DEBIT_NOTE',      L1_CONF_DEBIT_NOTE),
     (re.compile(r'\b(TAX\s+INVOICE|GST\s+INVOICE)\b', re.I),              'GST_INVOICE',     L1_CONF_GST_INVOICE_KEYWORD),
-    (re.compile(r'\bINVOICE\b', re.I),                                     'GST_INVOICE',     L1_CONF_INVOICE_KEYWORD),
     (re.compile(r'\bPURCHASE\s+(ORDER|BILL)\b', re.I),                    'PURCHASE_BILL',   L1_CONF_PURCHASE_BILL),
+    (re.compile(r'\bUTILITY\s+BILL\b', re.I),                             'UTILITY_BILL',    L1_CONF_UTILITY_BILL),
     (re.compile(r'\b(ELECTRICITY|WATER|GAS|INTERNET|BROADBAND)\b.*\bBILL\b', re.I), 'UTILITY_BILL', L1_CONF_UTILITY_BILL),
     (re.compile(r'\bRECEIPT\b', re.I),                                    'EXPENSE_RECEIPT', L1_CONF_EXPENSE_RECEIPT),
+    (re.compile(r'\bINVOICE\b', re.I),                                     'GST_INVOICE',     L1_CONF_INVOICE_KEYWORD),
 ]
 
 

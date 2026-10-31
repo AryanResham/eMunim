@@ -1,0 +1,26 @@
+[
+  {
+    "description": "A4 copier paper 75 GSM - 500 sheets",
+    "hsn_sac": "48025690",
+    "unit": "REAM",
+    "price_min": 210,
+    "price_max": 340,
+    "gst_rate": 12
+  },
+  {
+    "description": "IT maintenance service - monthly",
+    "hsn_sac": "998313",
+    "unit": "JOB",
+    "price_min": 1800,
+    "price_max": 6200,
+    "gst_rate": 18
+  },
+  {
+    "description": "Cotton fabric - plain weave",
+    "hsn_sac": "52081190",
+    "unit": "MTR",
+    "price_min": 65,
+    "price_max": 160,
+    "gst_rate": 5
+  }
+]

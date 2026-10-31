@@ -1,0 +1,11 @@
+{
+  "version": "funsd-sroie-synthetic-v2",
+  "cuda_required": true,
+  "training_method": "full_parameter_finetuning_fp16_gradient_checkpointing",
+  "epochs": {"funsd": 5, "sroie": 5, "synthetic": 5},
+  "learning_rate": 0.00002,
+  "gradient_accumulation": 8,
+  "sanity_steps": 80,
+  "synthetic": {"train_per_type": 1000, "development_per_type": 150, "test_per_type": 150},
+  "indian_msme_use": "held_out_testing_only"
+}

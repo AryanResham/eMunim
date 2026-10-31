@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
-  Store,
   CalendarDays,
   FileText,
   Image,
@@ -111,7 +110,7 @@ export function Step2Classify({
                 style={{
                   background: 'rgba(75,108,183,0.1)',
                   border: '1px solid rgba(75,108,183,0.25)',
-                  color: '#4B6CB7',
+                  color: '#2B6CB7',
                 }}
               >
                 <ScanText size={12} />
@@ -133,8 +132,8 @@ export function Step2Classify({
                   style={{ background: 'rgba(75,108,183,0.08)', border: '1px solid rgba(75,108,183,0.15)' }}
                 >
                   {isImage
-                    ? <Image size={26} style={{ color: '#4B6CB7' }} />
-                    : <FileText size={26} style={{ color: '#4B6CB7' }} />
+                    ? <Image size={26} style={{ color: '#2B6CB7' }} />
+                    : <FileText size={26} style={{ color: '#2B6CB7' }} />
                   }
                 </div>
                 <div>
@@ -173,7 +172,7 @@ export function Step2Classify({
                 Transaction Date
               </p>
               <div className="flex items-center gap-2">
-                <CalendarDays size={13} style={{ color: '#4B6CB7' }} />
+                <CalendarDays size={13} style={{ color: '#2B6CB7' }} />
                 <span className="text-sm font-semibold" style={{ color: '#1A1816' }}>{classification.date}</span>
               </div>
             </div>
@@ -259,7 +258,7 @@ export function Step2Classify({
                       ? {
                           background: 'rgba(75,108,183,0.12)',
                           border: '1px solid rgba(75,108,183,0.35)',
-                          color: '#4B6CB7',
+                          color: '#2B6CB7',
                         }
                       : {
                           background: 'rgba(0,0,0,0.05)',
@@ -328,7 +327,7 @@ export function Step2Classify({
         <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
           <Button
             className="w-full gap-2 h-10 text-white text-sm font-semibold cursor-pointer"
-            style={{ background: '#4B6CB7' }}
+            style={{ background: '#2B6CB7' }}
             onClick={handleProceed}
             disabled={isProcessing}
           >

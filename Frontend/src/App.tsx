@@ -1,92 +1,35 @@
-import { useState } from 'react'
-import { Bell, Search } from 'lucide-react'
+import { request } from '@/api/backend'
+import { BusinessOnboarding } from '@/components/BusinessOnboarding'
+import type { BusinessProfile } from '@/components/BusinessOnboarding'
+import { useEffect, useState } from 'react'
 import { BackgroundOrbs } from '@/components/layout/BackgroundOrbs'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { UploadWorkflow } from '@/components/upload/UploadWorkflow'
-import { motion } from 'framer-motion'
+import { Records } from '@/components/Records'
+import { Settings } from '@/components/Settings'
+import { Research } from '@/components/Research'
 
 export default function App() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  const sidebarWidth = sidebarCollapsed ? 64 : 224
-
-  return (
-    <div className="h-screen w-screen overflow-hidden relative">
-      <BackgroundOrbs />
-
-      {/* Sidebar */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((v) => !v)}
-        activePage="uploads"
-      />
-
-      {/* Main content — offset by sidebar width */}
-      <motion.main
-        initial={{ paddingLeft: sidebarWidth }}
-        animate={{ paddingLeft: sidebarWidth }}
-        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-        className="h-full flex flex-col relative z-10"
-      >
-        {/* Top bar */}
-        <header
-          className="flex items-center justify-between px-8 py-4 border-b flex-shrink-0"
-          style={{ borderColor: 'rgba(0,0,0,0.08)', background: 'rgba(245,242,236,0.8)' }}
-        >
-          <div>
-            <h1 className="text-xl font-semibold leading-tight" style={{ color: '#1A1816' }}>
-              Upload Documents
-            </h1>
-            <p className="text-sm mt-0.5 font-normal" style={{ color: '#A09890' }}>
-              Let AI handle your bookkeeping
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Search */}
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
-              style={{
-                background: 'rgba(0,0,0,0.05)',
-                border: '1px solid rgba(0,0,0,0.09)',
-              }}
-            >
-              <Search size={14} style={{ color: '#A09890' }} />
-              <input
-                type="text"
-                placeholder="Search records..."
-                className="bg-transparent border-none outline-none text-sm w-32"
-                style={{ color: '#1A1816' }}
-              />
-            </div>
-
-            {/* Notifications */}
-            <button
-              className="relative w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer transition-all"
-              style={{ border: '1px solid rgba(0,0,0,0.09)', background: 'rgba(0,0,0,0.04)' }}
-            >
-              <Bell size={15} style={{ color: '#78726A' }} />
-              <span
-                className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
-                style={{ background: '#DC2626' }}
-              />
-            </button>
-
-            {/* Avatar */}
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white cursor-pointer"
-              style={{ background: '#4B6CB7' }}
-            >
-              AM
-            </div>
-          </div>
-        </header>
-
-        {/* Upload workflow canvas */}
-        <div className="flex-1 overflow-hidden px-8 pt-8 pb-4">
-          <UploadWorkflow />
-        </div>
-      </motion.main>
-    </div>
-  )
+  const [collapsed,setCollapsed]=useState(()=>window.matchMedia('(max-width: 850px)').matches)
+  const [page,setPage]=useState('uploads')
+  const [profile,setProfile]=useState<BusinessProfile|null>(null)
+  const [loading,setLoading]=useState(true)
+  const [profileError,setProfileError]=useState('')
+  async function loadProfile() {
+    setLoading(true); setProfileError('')
+    try { setProfile(await request<BusinessProfile|null>('/business-profile')) }
+    catch(e) { setProfileError(e instanceof Error ? e.message : 'Could not load business details') }
+    finally { setLoading(false) }
+  }
+  useEffect(()=>{ void loadProfile() },[])
+  if (loading) return <main className="panel">Starting eMunim and preparing models?</main>
+  if (profileError) return <main className="panel"><p role="alert">{profileError}</p><button onClick={loadProfile}>Retry</button></main>
+  if (!profile) return <main className="p-6"><BusinessOnboarding profile={null} onSaved={setProfile}/></main>
+  return <div className="h-screen w-screen overflow-hidden relative"><BackgroundOrbs/>
+    <Sidebar collapsed={collapsed} onToggle={()=>setCollapsed(v=>!v)} activePage={page} onNavigate={setPage}/>
+    <main style={{paddingLeft:collapsed?64:224}} className="h-full flex flex-col relative z-10">
+      <header className="px-6 py-4 border-b"><h1 className="text-xl font-semibold">eMunim · {page==='uploads'?'Document processing':page[0].toUpperCase()+page.slice(1)}</h1><p className="text-sm text-stone-500">Extract, verify and save accounting documents</p></header>
+      <div className="flex-1 overflow-y-auto p-6">{page==='uploads'?<UploadWorkflow/>:page==='settings'?<><BusinessOnboarding profile={profile} onSaved={setProfile}/><Settings/></>:page==='research'?<Research/>:<Records dashboard={page==='dashboard'}/>}</div>
+    </main>
+  </div>
 }

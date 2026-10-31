@@ -32,7 +32,7 @@ export function StepIndicator({ currentStep, totalSteps = 4 }: StepIndicatorProp
                     backgroundColor: isDone
                       ? '#16A34A'
                       : isActive
-                      ? '#4B6CB7'
+                      ? '#2B6CB7'
                       : 'rgba(0,0,0,0.08)',
                     boxShadow: isActive
                       ? '0 0 0 3px rgba(75,108,183,0.2)'
@@ -46,7 +46,7 @@ export function StepIndicator({ currentStep, totalSteps = 4 }: StepIndicatorProp
                     borderColor: isDone
                       ? '#16A34A'
                       : isActive
-                      ? '#4B6CB7'
+                      ? '#2B6CB7'
                       : 'rgba(0,0,0,0.12)',
                   }}
                 >
@@ -62,7 +62,7 @@ export function StepIndicator({ currentStep, totalSteps = 4 }: StepIndicatorProp
                 <span
                   className="text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap"
                   style={{
-                    color: isActive ? '#4B6CB7' : isDone ? '#78726A' : '#C0B9B2',
+                    color: isActive ? '#2B6CB7' : isDone ? '#78726A' : '#C0B9B2',
                   }}
                 >
                   {label}
@@ -74,7 +74,7 @@ export function StepIndicator({ currentStep, totalSteps = 4 }: StepIndicatorProp
                      style={{ background: 'rgba(0,0,0,0.1)' }}>
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ background: '#4B6CB7' }}
+                    style={{ background: '#2B6CB7' }}
                     animate={{ width: step < currentStep ? '100%' : '0%' }}
                     transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
                   />

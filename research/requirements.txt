@@ -1,0 +1,6 @@
+# Install into an environment with the project's CUDA-enabled torch retained.
+-r ../backend/requirements.txt
+seqeval==1.2.2
+matplotlib==3.11.2
+psutil>=5.9,<8
+scikit-learn>=1.5,<2

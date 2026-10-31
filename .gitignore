@@ -13,6 +13,11 @@ dist-ssr
 *.local
 
 .env
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/data/
+research/local/
 
 # Editor directories and files
 .vscode/*
@@ -31,5 +36,94 @@ dist-ssr
 # Deep Learning Model Weights
 *.safetensors
 *.bin
-models/
+/models/
 layoutLM model/
+layoutLM__model/data/
+layoutLM__model/legacy_data/
+layoutLM__model/legacy_evaluation/
+layoutLM__model/runs/
+layoutLM__model/layoutlm-*/
+
+# Images and document binaries (keep local, never stage)
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[wW][eE][bB][pP]
+*.[gG][iI][fF]
+*.[bB][mM][pP]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[sS][vV][gG]
+*.[iI][cC][oO]
+*.[aA][vV][iI][fF]
+*.[hH][eE][iI][cC]
+*.[pP][dD][fF]
+*.docx
+*.pptx
+
+# Generated datasets, annotations, OCR, previews and reference downloads
+/data/
+/raw_invoices/
+/LY_artifacts/
+/indian_erp_doc_generator/indian_erp_doc_generator/msme_*/
+/indian_erp_doc_generator/indian_erp_doc_generator/trial_dataset/
+/indian_erp_doc_generator/indian_erp_doc_generator/examples/
+
+# Additional checkpoints, tensor caches and downloaded archives
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.hdf5
+*.tflite
+*.gguf
+*.npy
+*.npz
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Python environments, caches and package/build output
+.venv/
+venv/
+env/
+.cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+*.egg-info/
+.eggs/
+build/
+*.pyo
+*.pyd
+
+# Browser test output, coverage and temporary runtime files
+test-results/
+playwright-report/
+blob-report/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.tsbuildinfo
+*.tmp
+*.temp
+*.bak
+*.pid
+*.db
+*.sqlite
+*.sqlite3
+/backend/tests/response.txt
+
+# Local secrets; retain shareable environment templates
+.env.*
+!.env.example
+!.env.*.example
+Thumbs.db
+in

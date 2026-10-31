@@ -21,7 +21,7 @@ export function Step4Validate({
   isProcessing,
 }: Step4ValidateProps) {
   const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(fields.map((f) => [f.key, f.value]))
+    Object.fromEntries(fields.map((f) => [f.key, f.value ?? '']))
   )
   const [submitted, setSubmitted] = useState(false)
 
@@ -175,7 +175,7 @@ export function Step4Validate({
               <Button
                 className="w-full gap-2 h-10 text-white text-sm font-semibold cursor-pointer"
                 style={{
-                  background: validationResult.overallPassed ? '#16A34A' : '#4B6CB7',
+                  background: validationResult.overallPassed ? '#16A34A' : '#2B6CB7',
                 }}
                 onClick={handleSubmit}
                 disabled={isProcessing}

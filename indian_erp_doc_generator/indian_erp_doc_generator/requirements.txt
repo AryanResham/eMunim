@@ -1,0 +1,4 @@
+# Tested with Python 3.12.14, Pillow 12.3.0 and NumPy 2.3.5.
+# These ranges use stable drawing, font and matrix APIs; a lock file is optional.
+Pillow>=10.0,<14
+numpy>=1.24,<3

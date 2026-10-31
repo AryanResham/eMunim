@@ -2,20 +2,55 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle, AlertCircle, Loader2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import type { ClassificationResult, ExtractedField } from '@/types/upload'
+import type { ClassificationResult, ExtractedField, Pipeline } from '@/types/upload'
 
 interface Step3ExtractProps {
   file: File
   filePreviewUrl: string | null
   classification: ClassificationResult
   fields: ExtractedField[]
+  pipeline: Pipeline
+  onPipelineChange: (pipeline: Pipeline) => Promise<void>
   onProceed: () => Promise<void>
   onBack: () => void
   isProcessing: boolean
 }
 
+const PIPELINE_OPTIONS: { value: Pipeline; label: string; description: string }[] = [
+  {
+    value: 'layoutlm_hosted_fallback',
+    label: 'LayoutLM + VLM fallback',
+    description: 'LayoutLM first, local vision model fills missing fields',
+  },
+  {
+    value: 'hosted_vlm',
+    label: 'VLM only (no OCR)',
+    description: 'Local vision model reads the image directly',
+  },
+  {
+    value: 'ocr_layoutlm',
+    label: 'OCR + VLM',
+    description: 'OCR text and image jointly into the vision model',
+  },
+]
+
+function SourceTag({ source }: { source?: string }) {
+  const isVlm = source === 'vlm'
+  return (
+    <span
+      className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+      style={{
+        background: isVlm ? 'rgba(148,113,61,0.12)' : 'rgba(75,108,183,0.10)',
+        color: isVlm ? '#94693D' : '#2B6CB7',
+      }}
+    >
+      {isVlm ? 'VLM' : 'LayoutLM'}
+    </span>
+  )
+}
+
 function FieldCard({ field, index }: { field: ExtractedField; index: number }) {
-  const isHighConfidence = field.confidence >= 85
+  const isHighConfidence = field.confidence !== null && field.confidence >= 85
 
   return (
     <motion.div
@@ -29,9 +64,12 @@ function FieldCard({ field, index }: { field: ExtractedField; index: number }) {
       }}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#A09890' }}>
-          {field.label}
-        </p>
+        <div className="flex items-center gap-2 mb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#A09890' }}>
+            {field.label}
+          </p>
+          <SourceTag source={field.source} />
+        </div>
         <p
           className="text-sm font-semibold truncate"
           style={{
@@ -43,12 +81,12 @@ function FieldCard({ field, index }: { field: ExtractedField; index: number }) {
         </p>
         <div className="flex items-center gap-2 mt-2">
           <Progress
-            value={field.confidence}
+            value={field.confidence ?? 0}
             className="h-1 flex-1"
             style={{ background: 'rgba(0,0,0,0.08)' }}
           />
           <span className="text-[10px] font-mono font-semibold w-8 text-right" style={{ color: '#A09890' }}>
-            {field.confidence}%
+            {field.confidence === null ? 'N/A' : field.confidence + '%'}
           </span>
         </div>
       </div>
@@ -82,6 +120,8 @@ export function Step3Extract({
   filePreviewUrl,
   classification,
   fields,
+  pipeline,
+  onPipelineChange,
   onProceed,
   onBack,
   isProcessing,
@@ -98,6 +138,35 @@ export function Step3Extract({
         <p className="text-sm" style={{ color: '#A09890' }}>
           AI extracted the following data from your {classification.label.toLowerCase()}
         </p>
+      </div>
+
+      {/* Pipeline selector */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {PIPELINE_OPTIONS.map((opt) => {
+          const selected = pipeline === opt.value
+          const disabled = isProcessing
+          return (
+            <motion.button
+              key={opt.value}
+              type="button"
+              whileTap={disabled ? undefined : { scale: 0.97 }}
+              onClick={disabled ? undefined : () => onPipelineChange(opt.value)}
+              className="rounded-xl text-left p-3 cursor-pointer"
+              style={{
+                background: selected ? 'rgba(75,108,183,0.09)' : 'rgba(0,0,0,0.03)',
+                border: selected ? '1px solid #2B6CB7' : '1px solid rgba(0,0,0,0.08)',
+                opacity: disabled ? 0.6 : 1,
+              }}
+            >
+              <p className="text-xs font-semibold mb-0.5" style={{ color: selected ? '#2B6CB7' : '#1A1816' }}>
+                {opt.label}
+              </p>
+              <p className="text-[10px] leading-snug" style={{ color: '#78726A' }}>
+                {opt.description}
+              </p>
+            </motion.button>
+          )
+        })}
       </div>
 
       <div className="grid grid-cols-[1fr_2fr] gap-4">
@@ -123,7 +192,7 @@ export function Step3Extract({
                   className="w-12 h-14 rounded-lg flex items-center justify-center"
                   style={{ background: 'rgba(75,108,183,0.08)', border: '1px solid rgba(75,108,183,0.15)' }}
                 >
-                  <FileText size={22} style={{ color: '#4B6CB7' }} />
+                  <FileText size={22} style={{ color: '#2B6CB7' }} />
                 </div>
                 <p className="text-xs font-medium truncate max-w-[130px]" style={{ color: '#78726A' }}>{file.name}</p>
               </div>
@@ -166,7 +235,7 @@ export function Step3Extract({
         <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
           <Button
             className="w-full gap-2 h-10 text-white text-sm font-semibold cursor-pointer"
-            style={{ background: '#4B6CB7' }}
+            style={{ background: '#2B6CB7' }}
             onClick={onProceed}
             disabled={isProcessing || showSkeleton}
           >
