@@ -31,3 +31,5 @@ dist-ssr
 # Deep Learning Model Weights
 *.safetensors
 *.bin
+models/
+layoutLM model/
