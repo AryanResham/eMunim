@@ -79,3 +79,20 @@ def test_offline_cli_generates_comparison_report(tmp_path):
     assert result.returncode==0,result.stderr
     assert report.with_suffix(".md").exists()
     assert len(json.loads(report.read_text())["pipelines"])==3
+
+def test_research_budget_covers_both_hosted_tiers(monkeypatch):
+    import run
+    from services.errors import HostedError
+    monkeypatch.setattr(settings,"HOSTED_VLM_MAX_ATTEMPTS",2)
+    assert set(run.HOSTED_TIERS)=={"extract_hosted","extract_hosted_llm"}
+    assert all(hasattr(pipeline,name) for name in run.HOSTED_TIERS)
+    payload={"calls_used":0}
+    def tier(*a,allow_network=True,**kw):
+        if not allow_network: raise HostedError("No cache",kind="network_disabled")
+        return {"metadata":{"attempts":1}}
+    bounded=run.budgeted(tier,payload,True,3)
+    bounded()
+    assert payload["calls_used"]==1
+    with pytest.raises(HostedError) as exc:
+        bounded();bounded()
+    assert exc.value.kind=="budget" and payload["calls_used"]==2

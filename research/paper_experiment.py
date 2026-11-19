@@ -31,6 +31,10 @@ from evaluate import evaluate,normalize
 from metric_math import edit_distance
 from resources import ResourceProbe,resource_summary
 
+# Frozen protocol arms. Only extract_hosted is budgeted below, so newer arms that
+# call other paid tiers (layoutlm_llm_vlm) are excluded rather than run unbudgeted.
+PAPER_ARMS=('ocr_layoutlm','hosted_vlm','layoutlm_hosted_fallback')
+
 
 def prepare(out,development_per_type=5,test_per_type=6):
     path=out/'manifest.json'
@@ -186,7 +190,7 @@ def run(args):
                 cold_loads.append({'doc_type':entry['doc_type'],'split':split,**cold.result})
                 write_json(out/'cold_model_loads.json',cold_loads)
             row={'id':entry['id'],'split':split,'image_sha256':entry['sha256'],'pipelines':{},'ocr_metrics':measured_ocr,'classification':classification}
-            names=['ocr_layoutlm'] if split=='development' else pipelines.PIPELINES
+            names=['ocr_layoutlm'] if split=='development' else PAPER_ARMS
             for name in names:
                 started=time.perf_counter()
                 try:

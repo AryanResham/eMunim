@@ -22,7 +22,9 @@ def compare(manifest_path, google, corrected):
     entries = [d for d in manifest["documents"] if d["split"] == google["split"]]
     report = {"documents": len(entries), "pipelines": {}, "note":
               "Paired pilot results, not causal proof. Corrected OCR changes text/boxes; hosted-only should be OCR-independent. Failures remain in cohort."}
-    for pipeline in PIPELINES:
+    # Runs saved before an arm existed lack it entirely; a partially present arm still fails below.
+    produced = {name for mapping in maps for row in mapping.values() for name in row["pipelines"]}
+    for pipeline in [name for name in PIPELINES if name in produced]:
         improved = regressed = unchanged = failures = 0
         rows = []
         for entry in entries:

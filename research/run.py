@@ -24,6 +24,24 @@ from PIL import Image
 from evaluate import evaluate
 
 PIPELINES = pipeline_module.PIPELINES
+HOSTED_TIERS = ("extract_hosted", "extract_hosted_llm")
+
+def budgeted(original,payload,live,max_calls):
+    """Serve from cache first; spend live calls only within the shared research budget."""
+    def bounded(*a,**kw):
+        try: return original(*a,**{**kw,"allow_network":False})
+        except HostedError as exc:
+            if exc.kind!="network_disabled": raise
+        if not live or payload["calls_used"]+settings.HOSTED_VLM_MAX_ATTEMPTS>max_calls:
+            raise HostedError("Research call budget exhausted or live inference disabled",kind="budget")
+        try:
+            result=original(*a,**{**kw,"allow_network":True})
+            payload["calls_used"]+=result["metadata"]["attempts"]
+            return result
+        except HostedError as exc:
+            payload["calls_used"]+=exc.attempts
+            raise
+    return bounded
 
 def load_manifest(path):
     payload=json.loads(path.read_text(encoding="utf-8"))
@@ -122,7 +140,7 @@ def main():
     if args.live and args.max_calls<=0: raise ValueError("--live requires a positive --max-calls budget")
     payload={"manifest_sha256":hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
         "policy_sha256":hashlib.sha256(args.policy.read_bytes()).hexdigest(),"split":args.split,
-        "policy":frozen,"provider":"groq","model":settings.HOSTED_VLM_MODEL,
+        "policy":frozen,"provider":"groq","model":settings.HOSTED_VLM_MODEL,"llm_model":settings.HOSTED_LLM_MODEL or None,
         "python":platform.python_version(),"platform":platform.platform(),
         "predictions":[],"calls_used":0,"created_at":time.time(),"ocr_variant":args.ocr_variant}
     try:
@@ -130,21 +148,10 @@ def main():
         payload["working_diff_sha256"]=hashlib.sha256(subprocess.check_output(["git","diff","HEAD"],cwd=ROOT)).hexdigest()
     except subprocess.CalledProcessError:
         payload["git_head"]=None
-    original=pipeline_module.extract_hosted
-    def bounded(*a,**kw):
-        try: return original(*a,**{**kw,"allow_network":False})
-        except HostedError as exc:
-            if exc.kind!="network_disabled": raise
-        if not args.live or payload["calls_used"]+settings.HOSTED_VLM_MAX_ATTEMPTS>args.max_calls:
-            raise HostedError("Research call budget exhausted or live inference disabled",kind="budget")
-        try:
-            result=original(*a,**{**kw,"allow_network":True})
-            payload["calls_used"]+=result["metadata"]["attempts"]
-            return result
-        except HostedError as exc:
-            payload["calls_used"]+=exc.attempts
-            raise
-    pipeline_module.extract_hosted=bounded
+    # Both hosted tiers draw paid calls, so both share the one research budget.
+    originals={name:getattr(pipeline_module,name) for name in HOSTED_TIERS}
+    for name,original in originals.items():
+        setattr(pipeline_module,name,budgeted(original,payload,args.live,args.max_calls))
     try:
         for entry in entries:
             image=normalize_image((args.manifest.parent/entry["image"]).read_bytes())
@@ -191,7 +198,8 @@ def main():
                 _models.clear()
                 gc.collect()
     finally:
-        pipeline_module.extract_hosted=original
+        for name,original in originals.items():
+            setattr(pipeline_module,name,original)
 
 if __name__=="__main__":
     main()

@@ -10,7 +10,7 @@ class DocType(str, Enum):
     CREDIT_NOTE = "CREDIT_NOTE"
     DEBIT_NOTE = "DEBIT_NOTE"
 
-Pipeline = Literal["ocr_layoutlm", "hosted_vlm", "layoutlm_hosted_fallback"]
+Pipeline = Literal["ocr_layoutlm", "hosted_vlm", "layoutlm_hosted_fallback", "layoutlm_llm_vlm"]
 ReviewPolicy = Literal["extraction_only", "validation_review", "validation_confidence_review"]
 
 class OCRWord(BaseModel):
