@@ -61,6 +61,21 @@ layoutLM__model/layoutlm-*/
 *.docx
 *.pptx
 
+# Authored frontend assets are application source, not invoice datasets.
+# Keep these exceptions below the document/image exclusions above.
+!/Frontend/public/**/*.[sS][vV][gG]
+!/Frontend/public/**/*.[iI][cC][oO]
+!/Frontend/public/**/*.[pP][nN][gG]
+!/Frontend/public/**/*.[jJ][pP][gG]
+!/Frontend/public/**/*.[jJ][pP][eE][gG]
+!/Frontend/public/**/*.[wW][eE][bB][pP]
+!/Frontend/src/assets/**/*.[sS][vV][gG]
+!/Frontend/src/assets/**/*.[iI][cC][oO]
+!/Frontend/src/assets/**/*.[pP][nN][gG]
+!/Frontend/src/assets/**/*.[jJ][pP][gG]
+!/Frontend/src/assets/**/*.[jJ][pP][eE][gG]
+!/Frontend/src/assets/**/*.[wW][eE][bB][pP]
+
 # Generated datasets, annotations, OCR, previews and reference downloads
 /data/
 /raw_invoices/
@@ -68,6 +83,9 @@ layoutLM__model/layoutlm-*/
 /indian_erp_doc_generator/indian_erp_doc_generator/msme_*/
 /indian_erp_doc_generator/indian_erp_doc_generator/trial_dataset/
 /indian_erp_doc_generator/indian_erp_doc_generator/examples/
+/research/model_report_*/
+# Local reference builder embeds transcribed invoice values.
+/scripts/freeze_raw_visual_reference.py
 
 # Additional checkpoints, tensor caches and downloaded archives
 *.pt
@@ -119,11 +137,46 @@ coverage.xml
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 /backend/tests/response.txt
 
 # Local secrets; retain shareable environment templates
 .env.*
 !.env.example
 !.env.*.example
+.envrc
+.direnv/
+/.aws/
+/.codex/
+**/credentials*.json
+**/application_default_credentials.json
+**/client_secret*.json
+**/*service-account*.json
+**/*service_account*.json
+**/*serviceAccount*.json
+**/secrets*.json
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Local frontend/deployment tooling state; keep deploy configuration in Git.
+.vite/
+.vercel/
+.netlify/
+.turbo/
+/model_artifacts/
+/deploy_artifacts/
+/deploy/backend.env
+/deploy/compose.env
 Thumbs.db
-in

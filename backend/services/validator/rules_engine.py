@@ -6,15 +6,21 @@ from config import settings
 from services.field_contract import REQUIRED, AMOUNT_KEYS, DATE_KEYS
 from services.validator.gstin_validator import validate_gstin
 
-RULE_VERSION = "consistency-v1"
+RULE_VERSION = "consistency-v2"
 POLICIES = ("extraction_only", "validation_review", "validation_confidence_review")
 
 def parse_amount(value):
     if value is None or not str(value).strip():
         return None
-    cleaned = re.sub(r"(?i)^(?:rs\.?|inr)\s*", "", str(value).strip()).replace("₹", "").replace(",", "").replace(" ", "")
-    if cleaned.startswith("(") and cleaned.endswith(")"):
-        cleaned = "-" + cleaned[1:-1]
+    cleaned = re.sub(r"\s+", "", str(value))
+    cleaned = re.sub(r"^(?:rs\.?|inr|\u20b9)", "", cleaned, count=1, flags=re.I)
+    negative = cleaned.startswith("(") and cleaned.endswith(")")
+    if negative:
+        cleaned = cleaned[1:-1]
+        cleaned = re.sub(r"^(?:rs\.?|inr|\u20b9)", "", cleaned, count=1, flags=re.I)
+        if cleaned.startswith(("-", "+")):
+            return None
+    cleaned = ("-" if negative else "") + cleaned.replace(",", "")
     try:
         number = Decimal(cleaned)
         return number if number.is_finite() else None
@@ -22,9 +28,11 @@ def parse_amount(value):
         return None
 
 def parse_date(value):
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%b %d, %Y"):
+    if value is None:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%b %d, %Y", "%d-%b-%Y", "%d-%B-%Y", "%d/%m/%y", "%d-%m-%y", "%d.%m.%y"):
         try:
-            return datetime.strptime(value.strip(), fmt).date()
+            return datetime.strptime(str(value).strip(), fmt).date()
         except ValueError:
             pass
     return None

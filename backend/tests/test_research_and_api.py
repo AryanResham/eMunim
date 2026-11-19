@@ -27,14 +27,15 @@ def test_hosted_upload_extract_edit_validate_save_retrieve(tmp_path,monkeypatch)
     monkeypatch.setattr(pipeline,"extract_hosted",lambda *a,**kw:dict(fields=fields,metadata={"attempts":1,"logical_calls":1,"model":"fixture"}))
     buf=io.BytesIO();Image.new("RGB",(60,80),"white").save(buf,format="PNG")
     with TestClient(app) as client:
+        client.put('/api/business-profile',json={'legal_name':'Offline fixture','gstins':[]}).raise_for_status()
         uploaded=client.post("/api/upload",files={"file":("image.png",buf.getvalue(),"image/png")}).json()[0]
-        result=client.post("/api/extract",json={"file_id":uploaded["file_id"],"doc_type":"EXPENSE_RECEIPT","pipeline":"hosted_vlm"})
+        result=client.post("/api/extract",json={"file_id":uploaded["file_id"],"doc_type":"EXPENSE_RECEIPT","pipeline":"hosted_vlm","classification_confirmed":True})
         assert result.status_code==200
         run=result.json()
         next(f for f in run["fields"] if f["key"]=="amount")["value"]="275.50"
         validation=client.post("/api/validate",json={"doc_type":"EXPENSE_RECEIPT","fields":run["fields"]})
         assert validation.json()["overall_passed"]
-        saved=client.post("/api/documents",json={"run_id":run["run_id"],"fields":run["fields"],"confirmed":True})
+        saved=client.post("/api/documents",json={"run_id":run["run_id"],"fields":run["fields"],"confirmed":True,"override_reason":"Offline fixture: business identity manually reviewed"})
         assert saved.status_code==200
         assert next(f for f in saved.json()["fields"] if f["key"]=="amount")["source"]=="human"
         assert client.get("/api/documents").json()["total"]==1

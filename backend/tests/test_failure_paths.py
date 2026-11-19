@@ -90,7 +90,8 @@ def test_extraction_requires_ocr_for_local_and_valid_upload():
     Image.new("RGB",(80,100)).save(stream,format="PNG")
     with TestClient(app) as client:
         file_id=client.post("/api/upload",files={"file":("invoice.png",stream.getvalue(),"image/png")}).json()[0]["file_id"]
-        request={"file_id":file_id,"doc_type":"GST_INVOICE","pipeline":"ocr_layoutlm"}
+        client.put('/api/business-profile',json={'legal_name':'Offline fixture','gstins':[]}).raise_for_status()
+        request={"file_id":file_id,"doc_type":"GST_INVOICE","pipeline":"ocr_layoutlm","classification_confirmed":True}
         assert client.post("/api/extract",json=request).status_code==422
         request["file_id"]="00000000-0000-0000-0000-000000000000"
         assert client.post("/api/extract",json=request).status_code==404
@@ -102,6 +103,7 @@ def test_google_ocr_retry_count_is_real_and_auth_is_not_retried(monkeypatch,stat
     from services import ocr_service
     from models.schemas import OCRResult
     monkeypatch.setattr(settings,'GOOGLE_CLOUD_VISION_API_KEY','fixture-private-key')
+    monkeypatch.setattr(settings,'OCR_PROVIDER','google_vision')
     monkeypatch.setattr(settings,'GOOGLE_VISION_MAX_ATTEMPTS',2)
     calls=[]
     async def provider(image):

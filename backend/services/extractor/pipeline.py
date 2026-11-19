@@ -21,7 +21,10 @@ def routing_reasons(doc_type, fields, threshold=None):
     reasons.extend(rule["name"] + ": " + rule["message"] for rule in validation["rules"] if rule["passed"] is False)
     return list(dict.fromkeys(reasons))
 
-def resolve_candidates(doc_type, local, hosted, threshold=None):
+def resolve_candidates(doc_type, local, hosted, threshold=None, conflict_policy=None):
+    policy = settings.HYBRID_CONFLICT_POLICY if conflict_policy is None else conflict_policy
+    if policy not in ("keep_local", "prefer_hosted"):
+        raise ValueError("Unknown hybrid conflict policy")
     limit = settings.FALLBACK_THRESHOLD if threshold is None else threshold
     remote = {f["key"]: f for f in hosted}
     merged, decisions, conflicts = [], [], []
@@ -34,18 +37,25 @@ def resolve_candidates(doc_type, local, hosted, threshold=None):
                 chosen, action = other, "hosted_gap_or_uncertainty"
             elif str(field["value"]).strip().casefold() != str(other["value"]).strip().casefold():
                 conflicts.append(field["key"])
-                action = "conflict_keep_local_review"
+                if policy == "prefer_hosted":
+                    chosen, action = other, "conflict_prefer_hosted_review"
+                else:
+                    action = "conflict_keep_local_review"
         merged.append(chosen)
         decisions.append({"key": field["key"], "action": action})
     return canonical_fields(doc_type, merged), decisions, conflicts
 
 def run_pipeline(*, pipeline, image_bytes, ocr_result, doc_type, image_width, image_height,
-                 review_policy="validation_review", allow_network=True, fallback_threshold=None, review_threshold=None):
+                 review_policy="validation_review", allow_network=True, fallback_threshold=None, review_threshold=None,
+                 conflict_policy=None):
     if pipeline not in PIPELINES:
         raise ValueError("Unsupported pipeline; use " + ", ".join(PIPELINES))
     keys_for(doc_type)
     started = time.perf_counter()
-    meta = {"pipeline_version": "pipelines-v1", "schema_version": "fields-v1",
+    policy = settings.HYBRID_CONFLICT_POLICY if conflict_policy is None else conflict_policy
+    if policy not in ("keep_local", "prefer_hosted"):
+        raise ValueError("Unknown hybrid conflict policy")
+    meta = {"pipeline_version": "pipelines-v2", "schema_version": "fields-v1", "conflict_policy": policy,
             "fallback_threshold": settings.FALLBACK_THRESHOLD if fallback_threshold is None else fallback_threshold,
             "threshold_status": "development setting; not calibrated", "routing_reasons": [],
             "conflicts": [], "operational_reasons": [], "hosted": {"attempts": 0, "logical_calls": 0},
@@ -80,7 +90,7 @@ def run_pipeline(*, pipeline, image_bytes, ocr_result, doc_type, image_width, im
                 try:
                     hosted = extract_hosted(image_bytes, doc_type, allow_network=allow_network)
                     meta["hosted"], meta["hosted_fields"] = hosted["metadata"], hosted["fields"]
-                    fields, meta["decisions"], meta["conflicts"] = resolve_candidates(doc_type, fields, hosted["fields"], fallback_threshold)
+                    fields, meta["decisions"], meta["conflicts"] = resolve_candidates(doc_type, fields, hosted["fields"], fallback_threshold, policy)
                 except HostedError as exc:
                     meta["operational_reasons"].append(str(exc))
                     meta["hosted"] = {"attempts": exc.attempts, "logical_calls": 1, "error": exc.kind, "usage": {}}

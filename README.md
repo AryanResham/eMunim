@@ -1,6 +1,8 @@
 # eMunim
 
 Accounting-document extraction, consistency checks, human review and durable records.
+For deployment, model packaging, environment setup and persistent storage, see
+[DEPLOYMENT.md](DEPLOYMENT.md). Model weights are distributed separately from Git.
 The application supports JPEG/PNG images and six document types. Research begins
 with independently labelled single-page English GST invoices.
 
@@ -47,6 +49,9 @@ your account. Do not use a text-only model. No Gemini/OpenAI key or local Qwen
 weights are required. Keys never belong in the frontend.
 
 Google Vision requires the service enabled and applicable billing/quota.
+The backend OCR provider is Google Vision only (`OCR_PROVIDER=google_vision`).
+Missing credentials return an explicit unavailable error; there is no local OCR
+fallback. Historical local-OCR experiments are separate from the backend runtime.
 Hosted inference uses bounded retries; it never silently changes providers.
 Backend/data stores OCR/provider caches, original uploads and immutable extraction
 runs. They can contain invoice information; keep them private and outside commits.
@@ -66,6 +71,10 @@ Future schema changes need explicit migrations; the app does not provision a
 PostgreSQL server or create the database itself. PostgreSQL uses psycopg v3.co
 
 ## LayoutLM training handoff
+
+The current synthetic training variants and measured limitations are documented in
+[MODEL_CARD.md](MODEL_CARD.md). Export a selected release using the deployment
+guide; model folders and training runs stay outside Git.
 
 The CUDA FUNSD → SROIE → six synthetic-model training sequence is complete.
 Inference reads per-type folders under LAYOUTLM_MODEL_ROOT (default:

@@ -37,3 +37,15 @@ app.include_router(research.router, prefix="/api")
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "0.1.0"}
+
+
+@app.get("/api/ready")
+def ready():
+    from fastapi.responses import JSONResponse
+    from services.model_registry import status
+    from services.extractor.field_mapper import DOC_TYPE_TO_MODEL
+    missing = [kind for kind in DOC_TYPE_TO_MODEL if status['extractors'].get(kind) != 'ready']
+    configured = bool(settings.GOOGLE_CLOUD_VISION_API_KEY)
+    return JSONResponse(status_code=200 if configured and not missing else 503,
+        content={"ready": configured and not missing, "ocr_provider": "google_vision",
+                 "ocr_configured": configured, "unavailable_models": missing})

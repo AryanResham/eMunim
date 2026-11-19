@@ -15,6 +15,7 @@ from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
 from seqeval.metrics import precision_score, recall_score, f1_score
 from seqeval.scheme import IOB2
 from common import HERE, ROOT, FUNSD_LABELS, SROIE_LABELS, LABEL_SETS, digest, read_rows, seed_all, validate_row, weight_file, write_json
+from services.extractor.ocr_compounds import assemble_field_text
 
 
 def enable_checkpointing(model):
@@ -77,11 +78,11 @@ def entity_spans(words,tags):
             tokens.append(word)
             continue
         if current is not None:
-            result.append((current,start,i," ".join(tokens)))
+            result.append((current,start,i,assemble_field_text(current.lower(),tokens)))
         current=tag[2:] if tag.startswith("B-") else None
         start=i;tokens=[word] if current else []
     if current is not None:
-        result.append((current,start,len(words)," ".join(tokens)))
+        result.append((current,start,len(words),assemble_field_text(current.lower(),tokens)))
     return result
 
 
@@ -133,6 +134,14 @@ def evaluate(model,dataset,labels,device):
     return metrics
 
 
+def selection_score(metrics, requested="auto"):
+    if requested == "auto":
+        return metrics.get("field_f1", metrics["entity_f1"])
+    if requested not in ("entity_f1", "field_f1"):
+        raise ValueError("Unknown development selection metric")
+    return metrics[requested]
+
+
 def train(args):
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required. CPU fallback is deliberately disabled.")
@@ -181,6 +190,8 @@ def train(args):
         gpu=torch.cuda.get_device_name(0),cuda=torch.version.cuda,torch=torch.__version__,
         method="full_parameter_finetuning_fp16_gradient_checkpointing",keep_head=args.keep_head,epochs=args.epochs,learning_rate=args.learning_rate,
         gradient_accumulation=args.accumulation,stride=96,window_merge="maximum first-subtoken confidence",real_msme_used=False)
+    if getattr(args,"selection_metric","auto") != "auto":
+        provenance["selection_metric"] = args.selection_metric
     write_json(run_dir/"provenance.json",provenance)
     optimizer=torch.optim.AdamW(model.parameters(),lr=args.learning_rate,weight_decay=.01,foreach=False)
     scaler=torch.amp.GradScaler("cuda")
@@ -266,7 +277,7 @@ def train(args):
         metrics=evaluate(model,dev_data,labels,device)
         row=dict(epoch=epoch+1,training_loss=loss_sum/len(loader),seconds=time.time()-started,**metrics)
         history.append(row)
-        score=metrics.get("field_f1",metrics["entity_f1"])
+        score=selection_score(metrics,getattr(args,"selection_metric","auto"))
         if score>best:
             best=score;bad_epochs=0
             output.mkdir(parents=True,exist_ok=True)
@@ -313,5 +324,6 @@ if __name__=="__main__":
     parser.add_argument("--data-dir",help="Explicit prepared manifest directory")
     parser.add_argument("--allow-missing-labels",action="store_true",help="Record absent target fields in audit")
     parser.add_argument("--keep-head",action="store_true",help="Continue an existing model with the same labels")
+    parser.add_argument("--selection-metric",choices=["auto","entity_f1","field_f1"],default="auto")
     args=parser.parse_args()
     train(args)

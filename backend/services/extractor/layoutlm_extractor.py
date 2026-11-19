@@ -9,6 +9,7 @@ from .field_mapper import (
     get_label_set, get_num_labels, bio_label_to_key, get_field_meta, get_model_folder,
 )
 from .rule_based_extractor import extract_all_regex
+from .ocr_compounds import normalize_compounds,assemble_field_text,VERSION as COMPOUND_VERSION
 
 # Cache one (processor, model, labels) tuple per model_key / per doc_type to
 # avoid reloading.
@@ -65,6 +66,11 @@ def _model_root() -> str:
     return str(Path(settings.LAYOUTLM_MODEL_ROOT).resolve())
 
 
+def _cache_key(name: str) -> str:
+    from config import settings
+    return f"{_model_root()}::{settings.LAYOUTLM_DEVICE}::{name}"
+
+
 def _folder_has_weights(folder: str) -> bool:
     from pathlib import Path
     p = Path(_model_root()) / folder
@@ -96,24 +102,25 @@ def _load_model(folder: str) -> tuple | None:
 
 @_serial_inference
 def _get_model(model_key="indian"):
-    if model_key not in _models:
+    cache_key = _cache_key(model_key)
+    if cache_key not in _models:
         folder_map = {
             "indian": "layoutlm-indian-invoice-trained",
             "synthetic": "layoutlm-synthetic-trained"
         }
         folder_name = folder_map.get(model_key, "layoutlm-indian-invoice-trained")
         if _folder_has_weights(folder_name):
-            _models[model_key] = _load_model(folder_name)
+            _models[cache_key] = _load_model(folder_name)
         else:
             # No usable merged weights: cache None so we fail fast / fall back.
-            _models[model_key] = None
-    return _models[model_key]
+            _models[cache_key] = None
+    return _models[cache_key]
 
 
 @_serial_inference
 def _get_model_for_doc_type(doc_type: str) -> tuple | None:
     """Per-doc-type model, or None if not mapped / missing weights."""
-    cache_key = f"doc::{doc_type}"
+    cache_key = _cache_key(f"doc::{doc_type}")
     if cache_key not in _models:
         folder = get_model_folder(doc_type)
         if folder and _folder_has_weights(folder):
@@ -153,7 +160,7 @@ def _aggregate_bio_predictions(
         if label.startswith("B-"):
             if current_field and current_tokens:
                 avg_conf = sum(current_confs) / len(current_confs)
-                extracted[current_field] = (" ".join(current_tokens), avg_conf)
+                extracted[current_field] = (assemble_field_text(current_field,current_tokens), avg_conf)
             current_field = bio_label_to_key(label)
             current_tokens = [word]
             current_confs = [conf]
@@ -163,14 +170,14 @@ def _aggregate_bio_predictions(
         else:
             if current_field and current_tokens:
                 avg_conf = sum(current_confs) / len(current_confs)
-                extracted[current_field] = (" ".join(current_tokens), avg_conf)
+                extracted[current_field] = (assemble_field_text(current_field,current_tokens), avg_conf)
             current_field = None
             current_tokens = []
             current_confs = []
 
     if current_field and current_tokens:
         avg_conf = sum(current_confs) / len(current_confs)
-        extracted[current_field] = (" ".join(current_tokens), avg_conf)
+        extracted[current_field] = (assemble_field_text(current_field,current_tokens), avg_conf)
 
     return extracted
 
@@ -213,6 +220,7 @@ def extract_fields(
     model_key: str = "indian",
     strict: bool = False,
     diagnostics: dict | None = None,
+    normalize_tokens: bool = True,
 ) -> list[dict]:
     """
     Run LayoutLMv3 token classification + regex fallback.
@@ -220,11 +228,15 @@ def extract_fields(
     """
     import torch
     from PIL import Image
+    source_word_count=len(words)
+    source_indices=[[i] for i in range(len(words))]
+    if normalize_tokens:
+        words,bboxes_raw,source_indices=normalize_compounds(words,bboxes_raw)
 
     # Primary path: use the per-doc-type fine-tuned model when available; fall
     # back to the merged model otherwise. The "synthetic" key keeps using the
     # merged synthetic checkpoint as a complementary head.
-    cache_hit = _models.get(f"doc::{doc_type}") is not None
+    cache_hit = _models.get(_cache_key(f"doc::{doc_type}")) is not None
     loading_started = time.perf_counter()
     per_type = _get_model_for_doc_type(doc_type) if model_key == "indian" else None
     model_load_ms = (time.perf_counter() - loading_started) * 1000
@@ -296,6 +308,9 @@ def extract_fields(
     model_results = _aggregate_bio_predictions(words, predictions, confidences, list(range(len(words))), labels)
 
     if diagnostics is not None:
+        diagnostics.update(compound_normalization=COMPOUND_VERSION if normalize_tokens else 'disabled',
+            original_ocr_words=source_word_count,joined_compounds=sum(len(s)>1 for s in source_indices),
+            compound_sources=[s for s in source_indices if len(s)>1])
         import hashlib
         from pathlib import Path
         checkpoint = Path(_model_root()) / str(get_model_folder(doc_type))

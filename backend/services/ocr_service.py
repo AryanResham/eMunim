@@ -10,6 +10,9 @@ from models.schemas import OCRResult, OCRWord
 VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
 OCR_VERSION = "vision-raw-v2"
 
+def ocr_cache_version():
+    return OCR_VERSION
+
 from utils.confidence_config import (
     OCR_CONFIDENCE_THRESHOLD,
     OCR_DEFAULT_WORD_CONFIDENCE,

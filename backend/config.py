@@ -1,7 +1,7 @@
 """Backend settings. Paths are rooted here, independent of the launch directory."""
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from dotenv import load_dotenv
 from pydantic import BeforeValidator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
@@ -18,6 +18,7 @@ def origins(value):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_PATH, extra="ignore")
+    OCR_PROVIDER: Literal["google_vision"] = "google_vision"
     GOOGLE_CLOUD_VISION_API_KEY: str = ""
     GOOGLE_VISION_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
     GOOGLE_VISION_TIMEOUT_SECONDS: float = Field(30, ge=1, le=120)
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     HOSTED_VLM_CACHE: bool = True
     REVIEW_THRESHOLD: float = Field(75, ge=0, le=100)
     FALLBACK_THRESHOLD: float = Field(60, ge=0, le=100)
+    HYBRID_CONFLICT_POLICY: str = Field("keep_local", pattern="^(keep_local|prefer_hosted)$")
     DATABASE_URL: str = ""
     DATA_DIR: str = str(ROOT / "data")
     LAYOUTLM_MODEL_ROOT: str = str(ROOT.parent / "layoutLM__model")

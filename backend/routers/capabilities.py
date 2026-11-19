@@ -9,7 +9,8 @@ def capabilities():
     models = {key: any((Path(settings.LAYOUTLM_MODEL_ROOT) / folder / name).is_file() for name in ("model.safetensors", "pytorch_model.bin"))
               for key, folder in DOC_TYPE_TO_MODEL.items()}
     from services.model_registry import status
-    return {"model_status": status, "ocr_configured": bool(settings.GOOGLE_CLOUD_VISION_API_KEY),
+    ocr_configured = bool(settings.GOOGLE_CLOUD_VISION_API_KEY)
+    return {"model_status": status, "ocr_configured": ocr_configured, "ocr_provider": settings.OCR_PROVIDER,
             "hosted_configured": bool(settings.GROQ_API_KEY and settings.HOSTED_VLM_MODEL),
             "hosted_model": settings.HOSTED_VLM_MODEL or None,
             "layoutlm_weights_present": models,
