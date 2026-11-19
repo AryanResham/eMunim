@@ -6,7 +6,7 @@ import { StepIndicator } from './StepIndicator'
 import { OcrDebugViewer } from '@/components/OcrDebugViewer'
 
 const DOCUMENT_TYPES: DocType[] = ['GST_INVOICE','PURCHASE_BILL','EXPENSE_RECEIPT','UTILITY_BILL','CREDIT_NOTE','DEBIT_NOTE']
-const PIPELINE_LABELS: Record<Pipeline,string> = {ocr_layoutlm:'OCR + LayoutLM', hosted_vlm:'Hosted vision model',layoutlm_hosted_fallback:'LayoutLM + selective hosted fallback'}
+const PIPELINE_LABELS: Record<Pipeline,string> = {ocr_layoutlm:'OCR + LayoutLM', hosted_vlm:'Hosted vision model',layoutlm_hosted_fallback:'LayoutLM + selective hosted fallback',layoutlm_llm_vlm:'LayoutLM + hosted LLM + VLM cascade'}
 const POLICIES: ReviewPolicy[] = ['validation_review','validation_confidence_review','extraction_only']
 
 export function UploadWorkflow() {
@@ -59,7 +59,9 @@ export function UploadWorkflow() {
     setFields(current=>current.map(f=>f.key===key?{...f,value:value.trim()?value:null,confidence:null,source:'human'}:f))
     setValidation(null); setConfirmed(false)
   }
-  const unavailable = !!caps && ((pipeline!=='hosted_vlm' && !caps.ocr_configured) || (pipeline!=='ocr_layoutlm' && !caps.hosted_configured))
+  const needsVlm = pipeline==='hosted_vlm' || pipeline==='layoutlm_hosted_fallback'
+  const needsLlm = pipeline==='layoutlm_llm_vlm'
+  const unavailable = !!caps && ((pipeline!=='hosted_vlm' && !caps.ocr_configured) || (needsVlm && !caps.hosted_configured) || (needsLlm && !caps.hosted_llm_configured))
   const noWeights = !!caps && pipeline!=='hosted_vlm' && !caps.layoutlm_weights_present[docType]
   return <div className="workflow">
     <StepIndicator currentStep={step}/>
@@ -73,7 +75,8 @@ export function UploadWorkflow() {
         <p className="muted">Extraction-only is an offline research comparator. Saving always requires review and server validation.</p>
         <label className="drop-area">Select or drop an invoice<input type="file" accept="image/jpeg,image/png" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]??null);setError('')}}/></label>
         {file && <p>{file.name} · {(file.size/1024).toFixed(0)} KB</p>}
-        {unavailable && <p className="alert">Configure {pipeline!=='hosted_vlm'&&!caps?.ocr_configured?'GOOGLE_CLOUD_VISION_API_KEY ':''}{pipeline!=='ocr_layoutlm'&&!caps?.hosted_configured?'GROQ_API_KEY and HOSTED_VLM_MODEL':''} in backend/.env, then restart.</p>}
+        {unavailable && <p className="alert">Configure {pipeline!=='hosted_vlm'&&!caps?.ocr_configured?'GOOGLE_CLOUD_VISION_API_KEY ':''}{needsVlm&&!caps?.hosted_configured?'GROQ_API_KEY and HOSTED_VLM_MODEL':''}{needsLlm&&!caps?.hosted_llm_configured?'GROQ_API_KEY and HOSTED_LLM_MODEL':''} in backend/.env, then restart.</p>}
+        {needsLlm && caps && !unavailable && !caps.hosted_configured && <p className="muted">The VLM tier is not configured, so fields the LLM cannot recover stay empty for review.</p>}
         <button disabled={busy||!file||unavailable} onClick={prepare}>{busy?'Processing…':'Upload and continue'}</button>
       </>}
       {step===2 && <>
@@ -88,8 +91,10 @@ export function UploadWorkflow() {
       </>}
       {(step===3||step===4)&&run && <>
         <h2>{step===3?'Review extracted fields':'Validate and save'}</h2>
-        <p>{PIPELINE_LABELS[pipeline]} · {run.metadata.elapsed_ms.toFixed(0)} ms · hosted attempts: {run.metadata.hosted.attempts}{run.metadata.hosted.cached?' (cached)':''}</p>
-        {run.metadata.routing_reasons.length>0&&<details><summary>Hosted fallback reasons</summary><ul>{run.metadata.routing_reasons.map(r=><li key={r}>{r}</li>)}</ul></details>}
+        <p>{PIPELINE_LABELS[pipeline]} · {run.metadata.elapsed_ms.toFixed(0)} ms · {run.metadata.cascade&&run.metadata.hosted_llm?<>LLM attempts: {run.metadata.hosted_llm.attempts}{run.metadata.hosted_llm.cached?' (cached)':''} · VLM attempts</>:'hosted attempts'}: {run.metadata.hosted.attempts}{run.metadata.hosted.cached?' (cached)':''}</p>
+        {run.metadata.routing_reasons.length>0&&(run.metadata.cascade
+          ?<details><summary>Cascade routing</summary>{([['LLM tier (text was read)',run.metadata.cascade.plan.llm],['VLM tier (text not in OCR)',run.metadata.cascade.plan.vlm],['Escalated to VLM',run.metadata.cascade.escalated]] as [string,string[]][]).filter(([,r])=>r.length>0).map(([title,r])=><div key={title}><strong>{title}</strong><ul>{r.map(x=><li key={x}>{x}</li>)}</ul></div>)}</details>
+          :<details><summary>Hosted fallback reasons</summary><ul>{run.metadata.routing_reasons.map(r=><li key={r}>{r}</li>)}</ul></details>)}
         {run.metadata.operational_reasons.length>0&&<div className="alert error">{run.metadata.operational_reasons.join(' ')}</div>}
         {run.metadata.conflicts.length>0&&<div className="alert">Extractor disagreements require correction or an explicit acceptance note: {run.metadata.conflicts.join(', ')}</div>}
         <div className="review-grid"><div><img className="invoice-preview" src={API_BASE+'/files/'+fileId} alt="Invoice source"/></div><div className="field-grid">

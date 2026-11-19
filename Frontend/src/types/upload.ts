@@ -1,6 +1,6 @@
 import type { OCRResult } from './ocr'
 export type DocType = 'GST_INVOICE' | 'PURCHASE_BILL' | 'EXPENSE_RECEIPT' | 'UTILITY_BILL' | 'CREDIT_NOTE' | 'DEBIT_NOTE'
-export type Pipeline = 'ocr_layoutlm' | 'hosted_vlm' | 'layoutlm_hosted_fallback'
+export type Pipeline = 'ocr_layoutlm' | 'hosted_vlm' | 'layoutlm_hosted_fallback' | 'layoutlm_llm_vlm'
 export type ReviewPolicy = 'extraction_only' | 'validation_review' | 'validation_confidence_review'
 export interface ClassificationResult {
   type: DocType; label: string; subCategory: string; confidence: number
@@ -24,7 +24,9 @@ export interface ExtractionRun {
   run_id: string; file_id: string; doc_type: DocType; pipeline: Pipeline
   fields: ExtractedField[]; line_items: Record<string,string>[]; validation: ValidationResult
   metadata: {elapsed_ms: number; routing_reasons: string[]; conflicts: string[]; operational_reasons: string[];
-    degraded: boolean; hosted: {model?: string; attempts: number; logical_calls: number; cached?: boolean; error?: string}}
+    degraded: boolean; hosted: {model?: string; attempts: number; logical_calls: number; cached?: boolean; error?: string}
+    hosted_llm?: {model?: string; attempts: number; logical_calls: number; cached?: boolean; error?: string}
+    cascade?: {plan: {llm: string[]; vlm: string[]}; tiers: ('llm'|'vlm')[]; escalated: string[]}}
 }
 export interface SavedDocument {
   id: string; run_id: string; file_id: string; doc_type: DocType; pipeline: Pipeline; created_at: string
@@ -35,6 +37,7 @@ export interface SavedDocument {
 export interface Capabilities {
   model_status?: { classifier: string; extractors: Record<string,string> }
   ocr_configured: boolean; hosted_configured: boolean; hosted_model: string|null
+  hosted_llm_configured: boolean; hosted_llm_model: string|null
   layoutlm_weights_present: Record<DocType, boolean>; database: string; threshold_status: string
   review_threshold: number; fallback_threshold: number; max_upload_mb: number
 }
