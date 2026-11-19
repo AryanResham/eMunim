@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     HOSTED_VLM_MIN_INTERVAL_SECONDS: float = Field(0, ge=0, le=60)
     HOSTED_VLM_MAX_OUTPUT_TOKENS: int = Field(2048, ge=128, le=8192)
     HOSTED_VLM_CACHE: bool = True
+    # Text-only tier over OCR tokens; reuses the HOSTED_VLM_* transport settings.
+    HOSTED_LLM_MODEL: str = ""
     REVIEW_THRESHOLD: float = Field(75, ge=0, le=100)
     FALLBACK_THRESHOLD: float = Field(60, ge=0, le=100)
     HYBRID_CONFLICT_POLICY: str = Field("keep_local", pattern="^(keep_local|prefer_hosted)$")
