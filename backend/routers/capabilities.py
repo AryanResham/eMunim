@@ -13,6 +13,8 @@ def capabilities():
     return {"model_status": status, "ocr_configured": ocr_configured, "ocr_provider": settings.OCR_PROVIDER,
             "hosted_configured": bool(settings.GROQ_API_KEY and settings.HOSTED_VLM_MODEL),
             "hosted_model": settings.HOSTED_VLM_MODEL or None,
+            "hosted_llm_configured": bool(settings.GROQ_API_KEY and settings.HOSTED_LLM_MODEL),
+            "hosted_llm_model": settings.HOSTED_LLM_MODEL or None,
             "layoutlm_weights_present": models,
             "database": "postgresql" if settings.DATABASE_URL.startswith("postgresql") else "sqlite",
             "review_threshold": settings.REVIEW_THRESHOLD, "fallback_threshold": settings.FALLBACK_THRESHOLD,

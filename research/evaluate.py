@@ -33,7 +33,11 @@ def evaluate(entries, predictions, threshold=75):
         raise ValueError("Duplicate ground-truth IDs")
     by_id = {r["id"]:r for r in predictions}
     groups = {}
-    for pipeline in ("ocr_layoutlm", "hosted_vlm", "layoutlm_hosted_fallback"):
+    # The original arms are mandatory. A newer arm is scored once any prediction carries it,
+    # and from then on is just as strict: a document missing it fails below.
+    produced = {name for r in predictions for name in r.get("pipelines", {})}
+    for pipeline in ("ocr_layoutlm", "hosted_vlm", "layoutlm_hosted_fallback") + tuple(
+            name for name in ("layoutlm_llm_vlm",) if name in produced):
         results = []
         fields = defaultdict(lambda: {"tp":0,"fp":0,"fn":0,"present":0,"absent":0,"correct_absent":0})
         failure_count = 0

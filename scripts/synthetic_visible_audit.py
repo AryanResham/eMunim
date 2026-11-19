@@ -21,6 +21,10 @@ from services.storage import write_json
 OUT=ROOT/'backend/data/synthetic_pipeline_sample_20261102_seed42'
 SOURCE=ROOT/'indian_erp_doc_generator/indian_erp_doc_generator/msme_6000/annotations/test'
 ARMS=['ocr_regex','ocr_layoutlm','hosted_vlm','layoutlm_hosted_fallback']
+# Scored once any document carries them; older result sets render exactly as before.
+OPTIONAL_ARMS=['layoutlm_llm_vlm']
+LABELS={'ocr_regex':'OCR + regex','ocr_layoutlm':'OCR + LayoutLM','hosted_vlm':'Hosted VLM',
+    'layoutlm_hosted_fallback':'Hybrid','layoutlm_llm_vlm':'LLM/VLM cascade'}
 
 def norm(key,value):
     if value is None or not str(value).strip():return None
@@ -93,9 +97,11 @@ def report():
     reference=json.loads((OUT/'rendered_reference.json').read_text(encoding='utf-8'))
     counts=defaultdict(Counter)
     errors=[]
+    results={entry['id']:json.loads((OUT/'documents'/(entry['id']+'.json')).read_text(encoding='utf-8')) for entry in reference['documents']}
+    arms=ARMS+[arm for arm in OPTIONAL_ARMS if any(arm in r['pipelines'] for r in results.values())]
     for entry in reference['documents']:
-        result=json.loads((OUT/'documents'/(entry['id']+'.json')).read_text(encoding='utf-8'))
-        for arm in ARMS:
+        result=results[entry['id']]
+        for arm in arms:
             run=result['pipelines'][arm]
             predicted={f['key']:f.get('value') for f in run.get('result',{}).get('fields',[])}
             c=counts[(entry['doc_type'],arm)]
@@ -117,11 +123,11 @@ def report():
         writer=csv.DictWriter(stream,fieldnames=list(errors[0]));writer.writeheader();writer.writerows(errors)
     lines=['# Supplemental printed-value comparison','',reference['provenance'],'',
         'This table checks printed values from the source renderer. It supplements the primary BIO-based report because some printed values lack BIO labels. It is not full-document accuracy or a field F1 score. Failed requests remain missing predictions.','',
-        '| Type | Images | OCR + regex | OCR + LayoutLM | Hosted VLM | Hybrid |',
-        '|---|---:|---:|---:|---:|---:|']
+        '| Type | Images | '+' | '.join(LABELS[arm] for arm in arms)+' |',
+        '|---|---:|'+'---:|'*len(arms)]
     for kind in ['GST_INVOICE','PURCHASE_BILL','EXPENSE_RECEIPT','UTILITY_BILL','CREDIT_NOTE','DEBIT_NOTE']:
         row=[]
-        for arm in ARMS:
+        for arm in arms:
             c=counts[(kind,arm)];row.append(f"{c['correct']}/{c['checked']} ({c['correct']/c['checked']:.2%})")
         lines.append('| '+kind+' | 10 | '+' | '.join(row)+' |')
     lines+=['',f"Printed values missing BIO labels: {len(reference['printed_values_missing_from_bio'])}.",'',

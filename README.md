@@ -13,6 +13,7 @@ with independently labelled single-page English GST invoices.
 | OCR + LayoutLM | Google Vision OCR plus one locally trained per-type checkpoint |
 | Hosted vision | Image directly to Groq, no external OCR or local model required |
 | Selective hybrid | Same LayoutLM path, with bounded hosted fallback for missing core values, low confidence or consistency failures |
+| LLM/VLM cascade (`layoutlm_llm_vlm`) | Same LayoutLM path. Problems where the text was read (low confidence, failed value rules, a missing value whose kind appears in the OCR text) go to a hosted text LLM that selects OCR token ids; it cannot write values. Only text absent from the OCR output, or still missing after the LLM, goes to the hosted vision model |
 
 Review policies are separate: extraction-only (offline comparator), validation,
 and validation plus LayoutLM-confidence flags. Hosted confidence is unavailable,
@@ -42,6 +43,7 @@ Edit backend/.env locally:
     GOOGLE_CLOUD_VISION_API_KEY=<your-key>
     GROQ_API_KEY=<your-key>
     HOSTED_VLM_MODEL=<image-capable-model-id-available-in-your-Groq-account>
+    HOSTED_LLM_MODEL=<text-model-id-for-the-cascade-pipeline>
 
 Groq configuration uses the image-input chat-completions endpoint documented at
 https://console.groq.com/docs/vision. Confirm current model availability/quota in

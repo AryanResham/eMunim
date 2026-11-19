@@ -78,7 +78,7 @@ def test_offline_cli_generates_comparison_report(tmp_path):
         "--predictions",str(predictions),"--out",str(report)],capture_output=True,text=True,timeout=30)
     assert result.returncode==0,result.stderr
     assert report.with_suffix(".md").exists()
-    assert len(json.loads(report.read_text())["pipelines"])==3
+    assert set(json.loads(report.read_text())["pipelines"])==set(pipeline.PIPELINES)
 
 def test_research_budget_covers_both_hosted_tiers(monkeypatch):
     import run
@@ -96,3 +96,24 @@ def test_research_budget_covers_both_hosted_tiers(monkeypatch):
     with pytest.raises(HostedError) as exc:
         bounded();bounded()
     assert exc.value.kind=="budget" and payload["calls_used"]==2
+
+def test_capabilities_report_llm_tier(monkeypatch):
+    from routers.capabilities import capabilities
+    monkeypatch.setattr(settings,"GROQ_API_KEY","test")
+    monkeypatch.setattr(settings,"HOSTED_LLM_MODEL","")
+    assert capabilities()["hosted_llm_configured"] is False
+    monkeypatch.setattr(settings,"HOSTED_LLM_MODEL","fixture-text-model")
+    body=capabilities()
+    assert body["hosted_llm_configured"] is True and body["hosted_llm_model"]=="fixture-text-model"
+
+def test_evaluator_scores_cascade_only_when_runs_have_it():
+    from evaluate import evaluate
+    fields=canonical_fields("UTILITY_BILL",[{"key":k,"value":v,"confidence":95,"source":"layoutlm"} for k,v in
+        {"consumer_no":"12345","bill_date":"01/01/2025","utility_provider":"Utility Ltd","amount_due":"100.00"}.items()])
+    entry={"id":"e","doc_type":"UTILITY_BILL","fields":{f["key"]:f["value"] for f in fields}}
+    old={"id":"e","pipelines":{p:{"fields":fields,"metadata":{}} for p in ("ocr_layoutlm","hosted_vlm","layoutlm_hosted_fallback")}}
+    assert "layoutlm_llm_vlm" not in evaluate([entry],[old])["pipelines"]
+    new={"id":"e","pipelines":{**old["pipelines"],"layoutlm_llm_vlm":{"fields":fields,"metadata":{}}}}
+    assert evaluate([entry],[new])["pipelines"]["layoutlm_llm_vlm"]["complete_document_accuracy"]==1
+    with pytest.raises(ValueError,match="Missing prediction"):
+        evaluate([entry,{**entry,"id":"f"}],[new,{**old,"id":"f"}])
