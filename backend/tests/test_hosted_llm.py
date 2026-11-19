@@ -37,17 +37,37 @@ def mock(monkeypatch, fields_for):
     return calls
 
 
+def parsed(lines):
+    return [part.split(":", 1) for line in lines for part in line.split() if part != "||"]
+
+
 def token_id(prompt, text):
-    lines = json.loads(prompt)["lines"]
-    return next(token[0] for line in lines for token in line if token[1] == text)
+    return next(int(i) for i, t in parsed(json.loads(prompt)["lines"]) if t == text)
 
 
 def test_serialization_rejoins_split_ids_and_keeps_reading_order():
     tokens, lines = hosted_llm.serialize_tokens(WORDS, BOXES, 1000, 1000)
     assert "INV/2024-25/0042" in tokens
-    assert [len(line) for line in lines] == [3, 3]
-    assert [token[0] for line in lines for token in line] == list(range(len(tokens)))
-    assert all(len(token) == 6 for line in lines for token in line)
+    assert lines == ["0:Bill 1:No: 2:INV/2024-25/0042", "3:Amount 4:Due: 5:1,250.00"]
+    assert [int(i) for i, _ in parsed(lines)] == list(range(len(tokens)))
+
+
+def test_wide_gap_is_marked_as_column_break():
+    boxes = [[[x, 10], [x + 30, 10], [x + 30, 30], [x, 30]] for x in (10, 45, 600)]
+    _, lines = hosted_llm.serialize_tokens(["Bill", "To", "GSTIN"], boxes, 1000, 1000)
+    assert lines == ["0:Bill 1:To || 2:GSTIN"]
+
+
+def test_request_too_large_is_explicit_and_not_retried(monkeypatch):
+    calls = []
+    client_type = httpx.Client
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(413, json={"error": {"code": "rate_limit_exceeded"}})
+    monkeypatch.setattr(hosted_llm.httpx, "Client", lambda **kw: client_type(transport=httpx.MockTransport(respond)))
+    with pytest.raises(HostedError) as exc:
+        hosted_llm.extract_hosted_llm(WORDS, BOXES, "UTILITY_BILL", 1000, 1000)
+    assert exc.value.kind == "too_large" and len(calls) == 1
 
 
 def test_text_only_request_and_values_come_from_ocr_tokens(monkeypatch):
