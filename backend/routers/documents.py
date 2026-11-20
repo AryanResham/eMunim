@@ -115,6 +115,11 @@ def summary():
     return {"count":len(rows), "with_issues":sum(r["status"] == "reviewed_with_issues" for r in rows),
             "by_type":groups, "note":"Printed document amounts; not profit, cash flow or accounting postings."}
 
+@router.get("/documents/dashboard")
+def dashboard():
+    from services.dashboard import build
+    return build(records(), document_amount)
+
 def csv_safe(value):
     text = "" if value is None else str(value)
     return "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) else text
