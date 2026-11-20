@@ -125,7 +125,10 @@ def extract_hosted_llm(words, boxes, doc_type, image_width, image_height, *, all
         "response_format": {"type": "json_object"},
         "temperature": 0, "max_completion_tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS,
     }
-    cache_key = hashlib.sha256(json.dumps({"prompt": prompt, "model": settings.HOSTED_LLM_MODEL, "base_url": url, "tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS}, sort_keys=True).encode()).hexdigest()
+    identity = {"prompt": prompt, "model": settings.HOSTED_LLM_MODEL, "base_url": url, "tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS}
+    if settings.HOSTED_LLM_REASONING_EFFORT:
+        payload["reasoning_effort"] = identity["reasoning_effort"] = settings.HOSTED_LLM_REASONING_EFFORT
+    cache_key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     path = data_dir() / "hosted_llm_cache" / (cache_key + ".json")
     if settings.HOSTED_VLM_CACHE and path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))

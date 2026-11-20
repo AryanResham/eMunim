@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     HOSTED_LLM_BASE_URL: str = ""
     HOSTED_LLM_API_KEY: str = ""
     HOSTED_LLM_MIN_INTERVAL_SECONDS: float | None = Field(None, ge=0, le=60)
+    # Sent only when set. Thinking models (e.g. Gemini 3.x) otherwise spend the output budget reasoning.
+    HOSTED_LLM_REASONING_EFFORT: str = ""
     REVIEW_THRESHOLD: float = Field(75, ge=0, le=100)
     FALLBACK_THRESHOLD: float = Field(60, ge=0, le=100)
     HYBRID_CONFLICT_POLICY: str = Field("keep_local", pattern="^(keep_local|prefer_hosted)$")

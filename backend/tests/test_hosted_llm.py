@@ -25,6 +25,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "HOSTED_LLM_BASE_URL", "")
     monkeypatch.setattr(settings, "HOSTED_LLM_API_KEY", "")
     monkeypatch.setattr(settings, "HOSTED_LLM_MIN_INTERVAL_SECONDS", None)
+    monkeypatch.setattr(settings, "HOSTED_LLM_REASONING_EFFORT", "")
 
 
 def mock(monkeypatch, fields_for):
@@ -147,3 +148,12 @@ def test_providers_do_not_wait_on_each_other(monkeypatch):
     assert sleeps == []
     hosted_vlm.pace("https://a.example", 30)
     assert len(sleeps) == 1 and 25 < sleeps[0] <= 30
+
+
+def test_reasoning_effort_is_sent_only_when_configured(monkeypatch):
+    calls = mock(monkeypatch, lambda body: {})
+    hosted_llm.extract_hosted_llm(WORDS, BOXES, "UTILITY_BILL", 1000, 1000)
+    monkeypatch.setattr(settings, "HOSTED_LLM_REASONING_EFFORT", "none")
+    hosted_llm.extract_hosted_llm(WORDS, BOXES, "UTILITY_BILL", 1000, 1000)
+    assert "reasoning_effort" not in calls[0] and calls[1]["reasoning_effort"] == "none"
+    assert len(calls) == 2  # a different effort is a different cache entry
