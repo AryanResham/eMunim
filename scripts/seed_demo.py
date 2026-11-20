@@ -30,6 +30,16 @@ from routers.documents import SaveRequest, save_document
 TYPES = ["GST_INVOICE", "PURCHASE_BILL", "EXPENSE_RECEIPT", "UTILITY_BILL", "CREDIT_NOTE", "DEBIT_NOTE"]
 DEFAULT_ARMS = ["ocr_layoutlm", "layoutlm_llm_vlm", "hosted_vlm"]
 REASON = "Preloaded demo data (synthetic)"
+GSTIN = re.compile(r"\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]")
+CAPTION = re.compile(r"^(?:reason|billing\s+period)\s*:\s*", re.I)
+
+
+def clean(key, text):
+    """Some templates print the caption inside the value line; keep only the value."""
+    if key.endswith("gstin"):
+        match = GSTIN.search(re.sub(r"\s+", "", text.upper()))
+        return match.group(0) if match else text
+    return CAPTION.sub("", text)
 
 
 def answer_key(annotation, doc_type):
@@ -39,7 +49,7 @@ def answer_key(annotation, doc_type):
     for line in annotation["ocr"]["lines"]:
         key = (mapping.get(line["field"]) or "").lower()
         if line["role"] == "value" and key in keys:
-            values.setdefault(key, line["text"])
+            values.setdefault(key, clean(key, line["text"]))
         if line["field"] == "supplier.registration" and "vendor_gstin" in keys:
             gstin = annotation["document"]["supplier"].get("gstin")
             if gstin and gstin in line["text"]:

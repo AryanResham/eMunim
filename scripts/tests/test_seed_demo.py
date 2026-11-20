@@ -60,3 +60,10 @@ def test_prediction_mistakes_become_corrections_on_the_dashboard(tmp_path, monke
     assert {c["key"] for c in record["audit"][0]["changes"]} >= {"consumer_no", "utility_provider"}
     quality = build(list_records(), document_amount)["quality"]
     assert quality["pipelines"][0]["name"] == "layoutlm_llm_vlm" and quality["pipelines"][0]["corrections"] >= 2
+
+
+def test_captions_printed_inside_value_lines_are_not_saved():
+    assert seed_demo.clean("vendor_gstin", "GSTIN: 07HQMXR3352D1Z0") == "07HQMXR3352D1Z0"
+    assert seed_demo.clean("reason", "Reason: Goods returned - damaged packing") == "Goods returned - damaged packing"
+    assert seed_demo.clean("billing_period", "Billing period: 23-03-2024 to 21-04-2024") == "23-03-2024 to 21-04-2024"
+    assert seed_demo.clean("invoice_no", "INV/24-25/00001") == "INV/24-25/00001"
