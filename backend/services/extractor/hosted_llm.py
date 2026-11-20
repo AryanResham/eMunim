@@ -1,19 +1,34 @@
-"""Groq text model tags OCR tokens by id. It selects printed tokens; it never writes values."""
+"""Hosted text model tags OCR tokens by id. It selects printed tokens; it never writes values.
+
+Any OpenAI-compatible chat API: Groq by default, or e.g. Gemini via HOSTED_LLM_BASE_URL/HOSTED_LLM_API_KEY.
+"""
 import hashlib
 import json
 import time
+from urllib.parse import urlparse
 import httpx
 from config import settings
 from services.errors import HostedError
 from services.field_contract import keys_for, canonical_fields
 from services.storage import data_dir, write_json
-# One provider quota, so both hosted tiers share one pacer and one Retry-After policy.
-from services.extractor.hosted_vlm import _pace_request, _retry_delay
+# Calls to one provider share its pacer; the same Retry-After policy applies to both tiers.
+from services.extractor.hosted_vlm import pace, _retry_delay
 from services.extractor.ocr_compounds import normalize_compounds, assemble_field_text
 
 PROMPT_VERSION = "ocr-token-tagging-v2"
 LINE_TOLERANCE = 8  # 0-1000 page units between token tops on one printed line
 COLUMN_GAP = 40  # 0-1000 page units of horizontal whitespace written as a column break
+
+
+def provider():
+    """(base URL, API key, pacing seconds) for this tier; empty settings fall back to the Groq VLM ones."""
+    vlm_url = settings.HOSTED_VLM_BASE_URL.rstrip("/")
+    url = (settings.HOSTED_LLM_BASE_URL or vlm_url).rstrip("/")
+    key = settings.HOSTED_LLM_API_KEY or settings.GROQ_API_KEY
+    interval = settings.HOSTED_LLM_MIN_INTERVAL_SECONDS
+    if interval is None:
+        interval = settings.HOSTED_VLM_MIN_INTERVAL_SECONDS if url == vlm_url else 0
+    return url, key, interval
 
 
 def _box_1000(vertices, width, height):
@@ -94,8 +109,9 @@ def ground_fields(values, keys, tokens):
 
 
 def extract_hosted_llm(words, boxes, doc_type, image_width, image_height, *, allow_network=True):
-    if not settings.GROQ_API_KEY or not settings.HOSTED_LLM_MODEL:
-        raise HostedError("Configure GROQ_API_KEY and HOSTED_LLM_MODEL in backend/.env.", kind="configuration")
+    url, key, interval = provider()
+    if not key or not settings.HOSTED_LLM_MODEL:
+        raise HostedError("Configure HOSTED_LLM_MODEL and HOSTED_LLM_API_KEY (or GROQ_API_KEY) in backend/.env.", kind="configuration")
     if len(words) != len(boxes) or image_width <= 0 or image_height <= 0:
         raise ValueError("Token tagging needs aligned OCR words, boxes and the image size.")
     keys = keys_for(doc_type)
@@ -109,7 +125,7 @@ def extract_hosted_llm(words, boxes, doc_type, image_width, image_height, *, all
         "response_format": {"type": "json_object"},
         "temperature": 0, "max_completion_tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS,
     }
-    cache_key = hashlib.sha256(json.dumps({"prompt": prompt, "model": settings.HOSTED_LLM_MODEL, "base_url": settings.HOSTED_VLM_BASE_URL, "tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS}, sort_keys=True).encode()).hexdigest()
+    cache_key = hashlib.sha256(json.dumps({"prompt": prompt, "model": settings.HOSTED_LLM_MODEL, "base_url": url, "tokens": settings.HOSTED_VLM_MAX_OUTPUT_TOKENS}, sort_keys=True).encode()).hexdigest()
     path = data_dir() / "hosted_llm_cache" / (cache_key + ".json")
     if settings.HOSTED_VLM_CACHE and path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))
@@ -122,10 +138,9 @@ def extract_hosted_llm(words, boxes, doc_type, image_width, image_height, *, all
     pacing_wait = 0.0
     for attempt in range(1, settings.HOSTED_VLM_MAX_ATTEMPTS + 1):
         try:
-            pacing_wait += _pace_request() or 0.0
+            pacing_wait += pace(url, interval) or 0.0
             with httpx.Client(timeout=settings.HOSTED_VLM_TIMEOUT_SECONDS) as client:
-                response = client.post(settings.HOSTED_VLM_BASE_URL.rstrip("/") + "/chat/completions",
-                    headers={"Authorization": "Bearer " + settings.GROQ_API_KEY}, json=payload)
+                response = client.post(url + "/chat/completions", headers={"Authorization": "Bearer " + key}, json=payload)
             if response.status_code != 200:
                 if response.status_code == 413:
                     raise HostedError("Document exceeds the provider's input-token limit per request or per minute. A larger provider tier is needed for this document.", attempts=attempt, kind="too_large")
@@ -144,7 +159,7 @@ def extract_hosted_llm(words, boxes, doc_type, image_width, image_height, *, all
                 raise ValueError("Provider output incomplete or refused")
             content = json.loads(choice["message"]["content"])
             fields, rejected = ground_fields(content.get("fields"), keys, tokens)
-            result = {"fields": canonical_fields(doc_type, fields), "metadata": {"provider": "groq", "model": settings.HOSTED_LLM_MODEL,
+            result = {"fields": canonical_fields(doc_type, fields), "metadata": {"provider": urlparse(url).hostname, "model": settings.HOSTED_LLM_MODEL,
                 "prompt_version": PROMPT_VERSION, "token_count": len(tokens), "rejected_fields": rejected,
                 "request_id": data.get("id"), "usage": data.get("usage", {}),
                 "attempts": attempt, "logical_calls": 1, "cached": False, "cache_key": cache_key,

@@ -37,7 +37,7 @@ export interface SavedDocument {
 export interface Capabilities {
   model_status?: { classifier: string; extractors: Record<string,string> }
   ocr_configured: boolean; hosted_configured: boolean; hosted_model: string|null
-  hosted_llm_configured: boolean; hosted_llm_model: string|null
+  hosted_llm_configured: boolean; hosted_llm_model: string|null; hosted_llm_provider: string|null
   layoutlm_weights_present: Record<DocType, boolean>; database: string; threshold_status: string
   review_threshold: number; fallback_threshold: number; max_upload_mb: number
 }

@@ -75,7 +75,7 @@ export function UploadWorkflow() {
         <p className="muted">Extraction-only is an offline research comparator. Saving always requires review and server validation.</p>
         <label className="drop-area">Select or drop an invoice<input type="file" accept="image/jpeg,image/png" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]??null);setError('')}}/></label>
         {file && <p>{file.name} · {(file.size/1024).toFixed(0)} KB</p>}
-        {unavailable && <p className="alert">Configure {pipeline!=='hosted_vlm'&&!caps?.ocr_configured?'GOOGLE_CLOUD_VISION_API_KEY ':''}{needsVlm&&!caps?.hosted_configured?'GROQ_API_KEY and HOSTED_VLM_MODEL':''}{needsLlm&&!caps?.hosted_llm_configured?'GROQ_API_KEY and HOSTED_LLM_MODEL':''} in backend/.env, then restart.</p>}
+        {unavailable && <p className="alert">Configure {pipeline!=='hosted_vlm'&&!caps?.ocr_configured?'GOOGLE_CLOUD_VISION_API_KEY ':''}{needsVlm&&!caps?.hosted_configured?'GROQ_API_KEY and HOSTED_VLM_MODEL':''}{needsLlm&&!caps?.hosted_llm_configured?'HOSTED_LLM_MODEL and HOSTED_LLM_API_KEY (or GROQ_API_KEY)':''} in backend/.env, then restart.</p>}
         {needsLlm && caps && !unavailable && !caps.hosted_configured && <p className="muted">The VLM tier is not configured, so fields the LLM cannot recover stay empty for review.</p>}
         <button disabled={busy||!file||unavailable} onClick={prepare}>{busy?'Processing…':'Upload and continue'}</button>
       </>}

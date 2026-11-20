@@ -15,7 +15,7 @@ from services.storage import data_dir, write_json
 
 PROMPT_VERSION = "invoice-image-v1"
 _request_lock = threading.Lock()
-_next_request_at = 0.0
+_next_request_at = {}  # per provider URL: calls to one provider share its quota
 
 
 def _retry_delay(response, attempt):
@@ -35,16 +35,20 @@ def _retry_delay(response, attempt):
     return min(2 ** attempt, settings.HOSTED_VLM_MAX_RETRY_WAIT_SECONDS)
 
 
-def _pace_request():
-    global _next_request_at
-    if settings.HOSTED_VLM_MIN_INTERVAL_SECONDS <= 0:
+def pace(provider_url, interval):
+    """Space calls to one provider by interval seconds; different providers never wait on each other."""
+    if interval <= 0:
         return 0.0
     with _request_lock:
-        delay = max(0, _next_request_at - time.monotonic())
+        delay = max(0, _next_request_at.get(provider_url, 0.0) - time.monotonic())
         if delay:
             time.sleep(delay)
-        _next_request_at = time.monotonic() + settings.HOSTED_VLM_MIN_INTERVAL_SECONDS
+        _next_request_at[provider_url] = time.monotonic() + interval
         return delay
+
+
+def _pace_request():
+    return pace(settings.HOSTED_VLM_BASE_URL.rstrip("/"), settings.HOSTED_VLM_MIN_INTERVAL_SECONDS)
 
 def extract_hosted(image_bytes, doc_type, target_keys=None, *, allow_network=True):
     if not settings.GROQ_API_KEY or not settings.HOSTED_VLM_MODEL:

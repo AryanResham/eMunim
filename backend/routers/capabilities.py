@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlparse
 from fastapi import APIRouter
 from config import settings
 from services.extractor.field_mapper import DOC_TYPE_TO_MODEL
@@ -13,8 +14,9 @@ def capabilities():
     return {"model_status": status, "ocr_configured": ocr_configured, "ocr_provider": settings.OCR_PROVIDER,
             "hosted_configured": bool(settings.GROQ_API_KEY and settings.HOSTED_VLM_MODEL),
             "hosted_model": settings.HOSTED_VLM_MODEL or None,
-            "hosted_llm_configured": bool(settings.GROQ_API_KEY and settings.HOSTED_LLM_MODEL),
+            "hosted_llm_configured": bool((settings.HOSTED_LLM_API_KEY or settings.GROQ_API_KEY) and settings.HOSTED_LLM_MODEL),
             "hosted_llm_model": settings.HOSTED_LLM_MODEL or None,
+            "hosted_llm_provider": urlparse(settings.HOSTED_LLM_BASE_URL or settings.HOSTED_VLM_BASE_URL).hostname,
             "layoutlm_weights_present": models,
             "database": "postgresql" if settings.DATABASE_URL.startswith("postgresql") else "sqlite",
             "review_threshold": settings.REVIEW_THRESHOLD, "fallback_threshold": settings.FALLBACK_THRESHOLD,

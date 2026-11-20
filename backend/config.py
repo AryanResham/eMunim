@@ -31,8 +31,12 @@ class Settings(BaseSettings):
     HOSTED_VLM_MIN_INTERVAL_SECONDS: float = Field(0, ge=0, le=60)
     HOSTED_VLM_MAX_OUTPUT_TOKENS: int = Field(2048, ge=128, le=8192)
     HOSTED_VLM_CACHE: bool = True
-    # Text-only tier over OCR tokens; reuses the HOSTED_VLM_* transport settings.
+    # Text-only tier over OCR tokens, any OpenAI-compatible chat API. Empty URL/key reuse the Groq
+    # settings; unset pacing reuses the VLM's when both tiers call the same provider, else no pacing.
     HOSTED_LLM_MODEL: str = ""
+    HOSTED_LLM_BASE_URL: str = ""
+    HOSTED_LLM_API_KEY: str = ""
+    HOSTED_LLM_MIN_INTERVAL_SECONDS: float | None = Field(None, ge=0, le=60)
     REVIEW_THRESHOLD: float = Field(75, ge=0, le=100)
     FALLBACK_THRESHOLD: float = Field(60, ge=0, le=100)
     HYBRID_CONFLICT_POLICY: str = Field("keep_local", pattern="^(keep_local|prefer_hosted)$")

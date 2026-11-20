@@ -22,6 +22,9 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "GROQ_API_KEY", "test")
     monkeypatch.setattr(settings, "HOSTED_LLM_MODEL", "fixture-text-model")
     monkeypatch.setattr(settings, "HOSTED_VLM_MIN_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(settings, "HOSTED_LLM_BASE_URL", "")
+    monkeypatch.setattr(settings, "HOSTED_LLM_API_KEY", "")
+    monkeypatch.setattr(settings, "HOSTED_LLM_MIN_INTERVAL_SECONDS", None)
 
 
 def mock(monkeypatch, fields_for):
@@ -108,3 +111,39 @@ def test_missing_model_is_a_configuration_error(monkeypatch):
     with pytest.raises(HostedError) as exc:
         hosted_llm.extract_hosted_llm(WORDS, BOXES, "UTILITY_BILL", 1000, 1000)
     assert exc.value.kind == "configuration"
+
+
+def test_second_provider_gets_its_own_url_and_key(monkeypatch):
+    monkeypatch.setattr(settings, "HOSTED_LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    monkeypatch.setattr(settings, "HOSTED_LLM_API_KEY", "gemini-test-key")
+    seen = []
+    client_type = httpx.Client
+    def respond(request):
+        seen.append((str(request.url), request.headers["authorization"]))
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(
+            {"fields": {k: None for k in keys_for("UTILITY_BILL")}})}}]})
+    monkeypatch.setattr(hosted_llm.httpx, "Client", lambda **kw: client_type(transport=httpx.MockTransport(respond)))
+    result = hosted_llm.extract_hosted_llm(WORDS, BOXES, "UTILITY_BILL", 1000, 1000)
+    assert seen == [("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "Bearer gemini-test-key")]
+    assert result["metadata"]["provider"] == "generativelanguage.googleapis.com"
+
+
+def test_pacing_follows_the_provider(monkeypatch):
+    monkeypatch.setattr(settings, "HOSTED_VLM_MIN_INTERVAL_SECONDS", 20)
+    assert hosted_llm.provider()[2] == 20  # same provider as the VLM: share its spacing
+    monkeypatch.setattr(settings, "HOSTED_LLM_BASE_URL", "https://other.example/v1")
+    assert hosted_llm.provider()[2] == 0  # different provider, nothing set: no spacing
+    monkeypatch.setattr(settings, "HOSTED_LLM_MIN_INTERVAL_SECONDS", 4)
+    assert hosted_llm.provider()[2] == 4
+
+
+def test_providers_do_not_wait_on_each_other(monkeypatch):
+    from services.extractor import hosted_vlm
+    sleeps = []
+    monkeypatch.setattr(hosted_vlm.time, "sleep", sleeps.append)
+    monkeypatch.setattr(hosted_vlm, "_next_request_at", {})
+    hosted_vlm.pace("https://a.example", 30)
+    hosted_vlm.pace("https://b.example", 30)
+    assert sleeps == []
+    hosted_vlm.pace("https://a.example", 30)
+    assert len(sleeps) == 1 and 25 < sleeps[0] <= 30
