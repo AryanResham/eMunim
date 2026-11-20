@@ -1,5 +1,6 @@
 import type { Capabilities, ClassificationResult, DocType, ExtractedField, ExtractionRun, Pipeline, ReviewPolicy, SavedDocument, ValidationResult } from '@/types/upload'
 import type { OCRResult } from '@/types/ocr'
+import type { DashboardData } from '@/types/dashboard'
 
 export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -35,4 +36,5 @@ export async function validateEntry(fields:ExtractedField[],docType:DocType,poli
 }
 export const saveDocument = (runId:string,fields:ExtractedField[],reason:string) => post<SavedDocument>('/documents', {run_id:runId,fields,confirmed:true,override_reason:reason})
 export const listDocuments = (params:string='') => request<{items:SavedDocument[];total:number}>('/documents?'+params)
+export const dashboard = () => request<DashboardData>('/documents/dashboard')
 export const summary = () => request<{count:number;with_issues:number;by_type:Record<string,{count:number;printed_amount_total:string;amount_count:number}>;note:string}>('/documents/summary')

@@ -6,6 +6,7 @@ import { BackgroundOrbs } from '@/components/layout/BackgroundOrbs'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { UploadWorkflow } from '@/components/upload/UploadWorkflow'
 import { Records } from '@/components/Records'
+import { Dashboard } from '@/components/Dashboard'
 import { Settings } from '@/components/Settings'
 import { Research } from '@/components/Research'
 
@@ -29,7 +30,7 @@ export default function App() {
     <Sidebar collapsed={collapsed} onToggle={()=>setCollapsed(v=>!v)} activePage={page} onNavigate={setPage}/>
     <main style={{paddingLeft:collapsed?64:224}} className="h-full flex flex-col relative z-10">
       <header className="px-6 py-4 border-b"><h1 className="text-xl font-semibold">eMunim · {page==='uploads'?'Document processing':page[0].toUpperCase()+page.slice(1)}</h1><p className="text-sm text-stone-500">Extract, verify and save accounting documents</p></header>
-      <div className="flex-1 overflow-y-auto p-6">{page==='uploads'?<UploadWorkflow/>:page==='settings'?<><BusinessOnboarding profile={profile} onSaved={setProfile}/><Settings/></>:page==='research'?<Research/>:<Records dashboard={page==='dashboard'}/>}</div>
+      <div className="flex-1 overflow-y-auto p-6">{page==='uploads'?<UploadWorkflow/>:page==='settings'?<><BusinessOnboarding profile={profile} onSaved={setProfile}/><Settings/></>:page==='research'?<Research/>:page==='dashboard'?<Dashboard/>:<Records/>}</div>
     </main>
   </div>
 }
